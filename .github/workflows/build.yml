@@ -1,0 +1,24 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore: ['*.md']
+    branches: ['master']
+  pull_request:
+    paths-ignore: ['*.md']
+    branches: ['master']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event.pull_request.draft == false
+    uses: Start9Labs/start-technologies/.github/workflows/build.yml@master
+    secrets:
+      # Optional for a build — without it the reusable workflow falls back to
+      # `start-cli init-key` and signs with a throwaway identity. Passing the
+      # real key keeps CI artifacts signed the same as local builds.
+      DEV_KEY: ${{ secrets.DEV_KEY }}
