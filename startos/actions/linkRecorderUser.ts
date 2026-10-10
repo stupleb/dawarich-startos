@@ -1,11 +1,11 @@
 import { storeJson } from '../fileModels/store.json'
 import { i18n } from '../i18n'
+import { sdk } from '../sdk'
 import {
   listDawarichAccounts,
   listRecorderUsers,
   recorderInstalled,
-} from '../recorder'
-import { sdk } from '../sdk'
+} from '../utils'
 
 const { InputSpec, Value } = sdk
 
@@ -48,7 +48,7 @@ export const linkRecorderUser = sdk.Action.withInput(
     group: i18n('OwnTracks Recorder'),
     visibility: (await recorderInstalled(effects).const())
       ? 'enabled'
-      : { disabled: i18n('Install OwnTracks Recorder first') },
+      : 'hidden',
   }),
 
   inputSpec,
@@ -56,6 +56,11 @@ export const linkRecorderUser = sdk.Action.withInput(
   async () => ({}),
 
   async ({ effects, input }) => {
+    if (!(await listRecorderUsers(effects)).includes(input.recorderUser)) {
+      throw new Error(
+        i18n('That OwnTracks Recorder user has no stored locations'),
+      )
+    }
     const accounts = await listDawarichAccounts(effects)
     const account = accounts.find((a) => String(a.id) === input.userId)
     if (!account)

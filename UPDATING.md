@@ -14,7 +14,7 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
 ## Applying the bump
 
 1. Set `images.dawarich.source.dockerTag` to `freikin/dawarich:<version>`.
-2. Set `startos/versions/current.ts` to `<version>:0` and write release notes per the workspace's release-note rules.
+2. Set `startos/versions/current.ts` to `<version>:0` and write release notes per the workspace's release-note rules. When the version already there has an `up` that does work (1.15.3:0's clears a leftover task), first move it into its own file under `startos/versions/` and list it in `other` in `index.ts`.
 3. Diff what the package runs or depends on between the two tags:
 
    ```bash
@@ -26,6 +26,7 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
    - `db/seeds.rb` must still create the demo account only when there are no users — the package creates its admin before the seed runs, and that is the whole guarantee.
    - The Recorder sync (`assets/recorder-sync.rb`) depends on the OwnTracks endpoint, the imports API, and Dawarich converting OwnTracks speed only when `topic` is present.
    - `assets/admin.rb` depends on the `User` model's attributes.
+   - `DOMAIN` must stay limited to links in outgoing emails (`grep -rn "ENV.*DOMAIN" app config lib` at the new tag): it falls back to another address while the chosen one is gone, which would be wrong for a URL Dawarich stores.
 
 4. Build, install over an existing instance, and check the web and background-job health checks, a sign-in, and a linked Recorder user.
 

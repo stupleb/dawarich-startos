@@ -1,5 +1,5 @@
 import { setupManifest } from '@start9labs/start-sdk'
-import { long, recorderDescription, short } from './i18n'
+import { long, short } from './i18n'
 
 export const manifest = setupManifest({
   id: 'dawarich',
@@ -13,7 +13,7 @@ export const manifest = setupManifest({
   volumes: ['startos', 'main', 'db', 'valkey'],
   images: {
     dawarich: {
-      source: { dockerTag: 'freikin/dawarich:1.15.2' },
+      source: { dockerTag: 'freikin/dawarich:1.15.3' },
       arch: ['x86_64', 'aarch64'],
     },
     postgres: {
@@ -23,16 +23,6 @@ export const manifest = setupManifest({
     valkey: {
       source: { dockerTag: 'valkey/valkey:9.1.2-alpine' },
       arch: ['x86_64', 'aarch64'],
-    },
-  },
-  dependencies: {
-    'owntracks-recorder': {
-      description: recorderDescription,
-      optional: true,
-      metadata: {
-        title: 'OwnTracks Recorder',
-        icon: 'https://raw.githubusercontent.com/Start9Labs/owntracks-recorder-startos/59d00e24b751a0de64bdfbbfcaef400b35384f79/icon.svg',
-      },
     },
   },
 })
