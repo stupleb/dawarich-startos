@@ -1,10 +1,8 @@
 # frozen_string_literal: true
 
-# Runs under `bin/rails runner`. Creates the admin account on an empty install
-# (before db:seed, whose demo account is only created when no users exist), and
-# with STARTOS_ADMIN_APPLY=true sets the admin's password.
+# Run by `rails runner`; README.md § Installation and First-Run Flow and § Actions describe each STARTOS_ADMIN_* mode.
 
-email = ENV.fetch('STARTOS_ADMIN_EMAIL')
+email = ENV.fetch('STARTOS_ADMIN_EMAIL').strip.downcase
 password = ENV.fetch('STARTOS_ADMIN_PASSWORD')
 
 if User.none?
@@ -22,8 +20,18 @@ end
 
 exit unless ENV['STARTOS_ADMIN_APPLY'] == 'true'
 
-user = User.find_by(email:) || User.where(admin: true).order(:id).first
+user = User.where(admin: true).order(:id).first
 abort 'No admin account exists' unless user
+
+if user.email != email
+  if User.where.not(id: user.id).exists?(email:)
+    abort "STARTOS_ADMIN_EMAIL_TAKEN=#{email}" if ENV['STARTOS_ADMIN_STRICT'] == 'true'
+
+    warn "#{email} belongs to another account; the admin keeps #{user.email}"
+  else
+    user.email = email
+  end
+end
 
 user.password = password
 user.password_confirmation = password

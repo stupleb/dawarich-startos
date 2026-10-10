@@ -15,7 +15,7 @@ Your location history, uploaded files and settings are part of your StartOS back
 
 ## Getting set up
 
-1. Run the **Set Admin Password** task. Copy the email and password it shows.
+1. Run the **Set Admin Password** task and enter the email address you want to sign in with. Copy the password it shows.
 2. Start Dawarich. The first start takes a minute or more while it builds its database.
 3. Open the **Web UI** interface and sign in with that email and password. You can change both under **Account** in Dawarich.
 4. Under **Settings → General**, set your time zone. It starts as UTC.
@@ -37,6 +37,8 @@ Out of the box Dawarich does not look up addresses, so visits, places and city s
 
 ## Using Dawarich with OwnTracks Recorder
 
+This part is optional: Dawarich works on its own, and its OwnTracks Recorder actions only appear once OwnTracks Recorder is installed.
+
 If your phones already send their locations to OwnTracks Recorder on this server, leave them as they are and let Dawarich follow the Recorder:
 
 1. Install **OwnTracks Recorder** if it is not installed, and let each phone send at least one location to it.
@@ -46,20 +48,30 @@ If your phones already send their locations to OwnTracks Recorder on this server
 
 Repeat for each person. **Unlink OwnTracks Recorder User** stops following someone; what was already imported stays.
 
+Keep OwnTracks Recorder running. While it is stopped, Dawarich shows a warning about it and the **OwnTracks Recorder Sync** check says it is paused. Once the Recorder runs again, the locations it receives reach Dawarich as before.
+
+The **OwnTracks Recorder Sync** check lists each person with the date of their newest location in OwnTracks Recorder. If a date stops moving while that person is out and about, their phone is no longer reaching OwnTracks Recorder: check the connection settings in their OwnTracks app.
+
 The phones keep talking to OwnTracks Recorder, so its friends and map keep working as before. Deleting tracks in OwnTracks Recorder does not delete them from Dawarich.
 
-If you would rather not run OwnTracks Recorder at all, point the OwnTracks app at Dawarich instead, as described under **Connecting a phone**.
+If you would rather not run OwnTracks Recorder at all, point the OwnTracks app at Dawarich instead, as described under **Connecting a phone**. To bring the history over first, link each person, wait until their import shows as completed on their **Imports** page, then unlink them.
+
+## Moving your data
+
+- **Out of Dawarich, or into another Dawarich:** each person's **Account** page has **Export my data**, which builds an archive of everything in their account, and **Import my data**, which restores such an archive.
+- **As GPX or GeoJSON:** the **Exports** page exports a chosen date range.
+- **Into Dawarich from files:** the **Imports** page takes Google Takeout, OwnTracks `.rec`, GPX, GeoJSON, KML and more.
 
 ## Email
 
 1. Run **Configure SMTP** and choose your StartOS system SMTP or another mail server.
-2. Links in Dawarich's emails use your `.local` address by default. To use another address, run **Set Primary URL**.
+2. Links in Dawarich's emails use your public domain if Dawarich has one, otherwise your `.local` address. To pick a different address, run **Set Primary URL**; only HTTPS addresses are offered. If the address you picked is removed later, the links move to one that still works.
 
 Without email, you can still invite family members: Dawarich shows a link to copy on the invitation page.
 
 ## Actions
 
-- **Set Admin Password:** generates a new admin password, also unlocking the account if it was locked after failed sign-ins. Use it if you lose the password.
+- **Set Admin Password:** sets the admin's sign-in email and generates a new password, also unlocking the account if it was locked after failed sign-ins. Use it to change that email or if you lose the password.
 - **Configure SMTP** and **Set Primary URL:** see **Email** above.
 - **Link OwnTracks Recorder User** and **Unlink OwnTracks Recorder User:** see **Using Dawarich with OwnTracks Recorder** above.
 

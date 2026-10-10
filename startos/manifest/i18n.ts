@@ -21,13 +21,13 @@ export const long = {
 
 export const recorderDescription = {
   en_US:
-    'Optional. Dawarich can import and follow the location history of OwnTracks Recorder users on this server.',
+    'Lets Dawarich import and keep following the location history of OwnTracks Recorder users on this server. Only needed for that feature.',
   es_ES:
-    'Opcional. Dawarich puede importar y seguir el historial de ubicaciones de los usuarios de OwnTracks Recorder en este servidor.',
+    'Permite a Dawarich importar y seguir el historial de ubicaciones de los usuarios de OwnTracks Recorder en este servidor. Solo es necesario para esa función.',
   de_DE:
-    'Optional. Dawarich kann den Standortverlauf der Benutzer von OwnTracks Recorder auf diesem Server importieren und fortlaufend übernehmen.',
+    'Ermöglicht Dawarich, den Standortverlauf der Benutzer von OwnTracks Recorder auf diesem Server zu importieren und fortlaufend zu übernehmen. Nur für diese Funktion nötig.',
   pl_PL:
-    'Opcjonalne. Dawarich może importować i na bieżąco śledzić historię lokalizacji użytkowników OwnTracks Recorder na tym serwerze.',
+    'Pozwala Dawarich importować i na bieżąco śledzić historię lokalizacji użytkowników OwnTracks Recorder na tym serwerze. Potrzebne tylko do tej funkcji.',
   fr_FR:
-    "Facultatif. Dawarich peut importer et suivre l'historique de localisation des utilisateurs d'OwnTracks Recorder sur ce serveur.",
+    "Permet à Dawarich d'importer et de suivre l'historique de localisation des utilisateurs d'OwnTracks Recorder sur ce serveur. Nécessaire uniquement pour cette fonction.",
 }

@@ -1,21 +1,23 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { storeJson } from './fileModels/store.json'
 import { i18n } from './i18n'
-import { recorderInstalled, recorderMounts } from './recorder'
 import { sdk } from './sdk'
 import {
   ASSETS_PATH,
   DB_USER,
+  RECORDER_ID,
   RECORDER_PATH,
   SYNC_STATE_PATH,
   appMounts,
   databaseEnv,
   dbMounts,
   getApplicationHosts,
-  getRootCa,
   getSmtpEnv,
   postgresEnv,
+  primaryUrl,
   railsEnv,
+  recorderInstalled,
+  recorderMounts,
   syncStatusFile,
   uiPort,
   urlHost,
@@ -31,7 +33,6 @@ export const main = sdk.setupMain(async ({ effects }) => {
       otpPrimaryKey: s.otpPrimaryKey,
       otpDeterministicKey: s.otpDeterministicKey,
       otpKeyDerivationSalt: s.otpKeyDerivationSalt,
-      primaryUrl: s.primaryUrl,
       smtp: s.smtp,
       recorderLinks: s.recorderLinks,
     }))
@@ -42,8 +43,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
     throw new Error('store.json is missing its generated secrets')
   }
 
-  // Read once: the Set Admin Password action applies a password itself when
-  // the database is up, and only leaves it pending when it is not.
+  // Read once: Set Admin Password applies a password itself while the database is up.
   const admin = await storeJson
     .read((s) => ({
       email: s.adminEmail,
@@ -51,11 +51,13 @@ export const main = sdk.setupMain(async ({ effects }) => {
       pending: s.adminPasswordPending,
     }))
     .once()
-  if (!admin?.password) throw new Error('No admin password is set')
+  if (!admin?.password || !admin.email) {
+    throw new Error('No admin account has been set up')
+  }
 
   const recorderPresent = await recorderInstalled(effects).const()
+  const domain = urlHost(await primaryUrl.bestUsable(effects).const())
 
-  const domain = urlHost(config.primaryUrl)
   const appEnv: Record<string, string> = {
     ...railsEnv({ ...config, postgresPassword, secretKeyBase }),
     APPLICATION_PROTOCOL: 'http',
@@ -94,7 +96,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const rootfs = await appSub.rootfs
   await writeFile(
     `${rootfs}/usr/local/share/ca-certificates/startos-root-ca.crt`,
-    await getRootCa(effects),
+    await sdk.getRootCa(effects),
   )
   await mkdir(`${rootfs}/var/app/tmp/imports/watched`, { recursive: true })
 
@@ -289,22 +291,52 @@ export const main = sdk.setupMain(async ({ effects }) => {
               display: i18n('OwnTracks Recorder Sync'),
               gracePeriod: 60_000,
               fn: async () => {
-                const status = await syncStatusFile.read().once()
-                const states = Object.values(status?.links ?? {})
-                const failed = states.find((s) => s.state === 'error')
-                if (failed) {
+                const recorder = await sdk
+                  .getStatus(effects, { packageId: RECORDER_ID })
+                  .once()
+                if (!recorder?.started) {
                   return {
-                    result: 'failure',
-                    message: failed.error ?? i18n('Sync failed'),
+                    result: 'loading',
+                    message: i18n('Paused while OwnTracks Recorder is stopped'),
                   }
                 }
-                if (states.length < links.length) {
+                const status = await syncStatusFile.read().once()
+                const states = links.map(
+                  (l) =>
+                    [l.recorderUser, status?.links[l.recorderUser]] as const,
+                )
+                const failed = states.find(([, s]) => s?.state === 'error')
+                if (failed) {
+                  const [user, s] = failed
+                  const problems: Record<string, string> = {
+                    account_missing: i18n(
+                      'The linked Dawarich account no longer exists. Unlink this user and link it again.',
+                    ),
+                    api_key_rejected: i18n(
+                      'Dawarich rejected the linked account’s API key',
+                    ),
+                    import_failed: i18n(
+                      'Dawarich could not import ${detail}. Restart Dawarich to try again.',
+                      { detail: s?.detail ?? '' },
+                    ),
+                  }
+                  return {
+                    result: 'failure',
+                    message: `${user}: ${
+                      problems[s?.code ?? ''] ??
+                      i18n('Sync failed: ${detail}', {
+                        detail: s?.detail ?? '',
+                      })
+                    }`,
+                  }
+                }
+                if (states.some(([, s]) => !s)) {
                   return {
                     result: 'starting',
                     message: i18n('Waiting for the first sync'),
                   }
                 }
-                if (states.some((s) => s.state === 'importing')) {
+                if (states.some(([, s]) => s?.state === 'importing')) {
                   return {
                     result: 'loading',
                     message: i18n('Importing location history'),
@@ -312,7 +344,17 @@ export const main = sdk.setupMain(async ({ effects }) => {
                 }
                 return {
                   result: 'success',
-                  message: i18n('Following OwnTracks Recorder'),
+                  message: i18n(
+                    'Following OwnTracks Recorder. Newest location: ${newest}',
+                    {
+                      newest: states
+                        .map(
+                          ([user, s]) =>
+                            `${user} ${s?.newestAt?.slice(0, 10) ?? '–'}`,
+                        )
+                        .join(', '),
+                    },
+                  ),
                 }
               },
             },

@@ -12,11 +12,15 @@ const dict = {
   'The background job worker is running': 7,
   'The background job worker is not running': 8,
   'OwnTracks Recorder Sync': 9,
-  'Sync failed': 10,
   'Waiting for the first sync': 11,
   'Importing location history': 12,
-  'Following OwnTracks Recorder': 13,
   'OwnTracks Recorder is not installed, so linked users are not being followed': 14,
+  'Paused while OwnTracks Recorder is stopped': 52,
+  'The linked Dawarich account no longer exists. Unlink this user and link it again.': 53,
+  'Dawarich rejected the linked account’s API key': 54,
+  'Dawarich could not import ${detail}. Restart Dawarich to try again.': 55,
+  'Sync failed: ${detail}': 56,
+  'Following OwnTracks Recorder. Newest location: ${newest}': 57,
 
   // interfaces.ts
   'Web UI': 15,
@@ -24,11 +28,10 @@ const dict = {
 
   // init
   'Create the admin account before starting Dawarich': 17,
-  'The address Dawarich uses in email links is gone. Choose another.': 18,
 
   // actions/setAdminPassword.ts
   'Set Admin Password': 19,
-  'Generate a new password for the Dawarich admin account. The first run creates the account.': 20,
+  'Choose the email the Dawarich admin signs in with and generate a new password for it. The first run creates the account.': 20,
   'Replaces the current admin password.': 21,
   'The package has not finished installing': 22,
   'Admin Login': 23,
@@ -36,15 +39,20 @@ const dict = {
   'Dawarich applies this password when it next starts. Sign in with it once it is running.': 25,
   Email: 26,
   Password: 27,
+  'The address the admin signs in to Dawarich with. Changing it here renames the admin account.': 41,
+  'Must be a valid email address': 48,
+  'That email already belongs to another Dawarich account': 49,
+  'Dawarich could not apply the password. The service log has the details.': 50,
 
   // actions/configureSmtp.ts
   'Configure SMTP': 28,
   'Let Dawarich send email: password resets, family invitations and monthly digests. Dawarich restarts to apply the change.': 29,
 
-  // actions/setPrimaryUrl.ts
+  // utils.ts (Set Primary URL)
   URL: 30,
   'Set Primary URL': 31,
   'Choose the address Dawarich puts in the links of the emails it sends. Dawarich restarts to apply the change.': 32,
+  'Only HTTPS addresses are listed, because the links in Dawarich’s emails always use HTTPS.': 58,
 
   // actions/linkRecorderUser.ts
   'OwnTracks Recorder user': 33,
@@ -55,10 +63,10 @@ const dict = {
   'Link OwnTracks Recorder User': 38,
   "Import an OwnTracks Recorder user's location history into a Dawarich account, then keep adding their new locations. Dawarich restarts to apply the change.": 39,
   'OwnTracks Recorder': 40,
-  'Install OwnTracks Recorder first': 41,
   'That Dawarich account no longer exists': 42,
   Linked: 43,
   'Dawarich imports this user’s history after it restarts, then adds each new location within about 15 seconds.': 44,
+  'That OwnTracks Recorder user has no stored locations': 51,
 
   // actions/unlinkRecorderUser.ts
   'Linked user': 45,

@@ -1,5 +1,7 @@
 import { FileHelper, SmtpSelection, T, utils, z } from '@start9labs/start-sdk'
+import { manifest as recorderManifest } from 'owntracks-recorder-startos/startos/manifest'
 import { storeJson } from './fileModels/store.json'
+import { i18n } from './i18n'
 import { sdk } from './sdk'
 
 export const uiPort = 3000
@@ -11,6 +13,7 @@ export const DB_NAME = 'dawarich'
 export const DB_USER = 'postgres'
 
 export const ASSETS_PATH = '/startos'
+export const RECORDER_ID = 'owntracks-recorder'
 export const RECORDER_PATH = '/recorder'
 export const SYNC_STATE_PATH = '/sync'
 
@@ -30,6 +33,42 @@ export const appMounts = sdk.Mounts.of()
   })
   .mountAssets({ subpath: null, mountpoint: ASSETS_PATH })
 
+export const recorderMounts = sdk.Mounts.of().mountDependency<
+  typeof recorderManifest
+>({
+  dependencyId: RECORDER_ID,
+  volumeId: 'main',
+  subpath: 'recorder/rec',
+  mountpoint: RECORDER_PATH,
+  readonly: true,
+})
+
+// Dawarich writes https:// into every email link, so only TLS addresses can be primary.
+export const primaryUrl = sdk.setupPrimaryUrl({
+  id: 'set-primary-url',
+  hostId: uiHostId,
+  interfaceId: uiInterfaceId,
+  metadata: {
+    name: i18n('Set Primary URL'),
+    description: i18n(
+      'Choose the address Dawarich puts in the links of the emails it sends. Dawarich restarts to apply the change.',
+    ),
+    warning: null,
+    allowedStatuses: 'any',
+    group: null,
+    visibility: 'enabled',
+  },
+  field: {
+    name: i18n('URL'),
+    description: i18n(
+      'Only HTTPS addresses are listed, because the links in Dawarich’s emails always use HTTPS.',
+    ),
+  },
+  get: storeJson.read((s) => s.primaryUrl),
+  set: (effects, url) => storeJson.merge(effects, { primaryUrl: url }),
+  ssl: true,
+})
+
 export function randomString(charset: string, len: number): string {
   return utils.getDefaultString({ charset, len })
 }
@@ -38,10 +77,39 @@ export function getRandomPassword(): string {
   return randomString('a-z,A-Z,0-9', 32)
 }
 
-// The root is the last certificate of any chain the OS mints.
-export async function getRootCa(effects: T.Effects): Promise<string> {
-  const chain = await effects.getSslCertificate({ hostnames: [] })
-  return chain[chain.length - 1]
+// psql output of a query, or null when the database is not answering.
+export async function queryDatabase(
+  effects: T.Effects,
+  sql: string,
+): Promise<string | null> {
+  const password = await storeJson.read((s) => s.postgresPassword).once()
+  if (!password) return null
+  return sdk.SubContainer.withTemp(
+    effects,
+    { imageId: 'postgres' },
+    sdk.Mounts.of(),
+    'query-database',
+    async (sub) => {
+      const res = await sub.exec(
+        [
+          'psql',
+          '-h',
+          '127.0.0.1',
+          '-U',
+          DB_USER,
+          '-d',
+          DB_NAME,
+          '-tA',
+          '-F',
+          '\t',
+          '-c',
+          sql,
+        ],
+        { env: { PGPASSWORD: password } },
+      )
+      return res.exitCode === 0 ? res.stdout.toString() : null
+    },
+  )
 }
 
 export async function getDatabasePassword(): Promise<string> {
@@ -58,7 +126,7 @@ export function postgresEnv(password: string) {
   }
 }
 
-// Rails reads these, plus the libpq variables psql uses.
+// Rails reads the DATABASE_* names; psql reads the PG* ones.
 export function databaseEnv(password: string) {
   return {
     DATABASE_HOST: '127.0.0.1',
@@ -81,7 +149,6 @@ type Secrets = {
   otpKeyDerivationSalt?: string
 }
 
-// What any Rails process of this package needs, serving or not.
 export function railsEnv(secrets: Secrets): Record<string, string> {
   const { otpPrimaryKey, otpDeterministicKey, otpKeyDerivationSalt } = secrets
   return {
@@ -100,18 +167,6 @@ export function railsEnv(secrets: Secrets): Record<string, string> {
         }
       : {}),
   }
-}
-
-export async function getNonLocalUrls(effects: T.Effects): Promise<string[]> {
-  return sdk.host
-    .getOwn(effects, uiHostId, (host) => {
-      if (!host) return []
-      const ui = Object.values(host.bindings)
-        .flatMap((b) => Object.values(b.interfaces))
-        .find((i) => i.id === uiInterfaceId)
-      return ui?.addressInfo.nonLocal.format() || []
-    })
-    .const()
 }
 
 // The hostnames Rails accepts in the Host header.
@@ -141,8 +196,7 @@ export async function getApplicationHosts(
   return [...new Set([...hostnames, osIp, 'localhost', '127.0.0.1', '[::1]'])]
 }
 
-// Host (with any port) of the primary URL, for links in Dawarich's emails.
-export function urlHost(url: string | undefined): string | undefined {
+export function urlHost(url: string | null): string | undefined {
   if (!url) return undefined
   try {
     return new URL(url).host || undefined
@@ -194,17 +248,69 @@ export async function getSmtpEnv(
 
 export const syncStatusFile = FileHelper.json(
   { base: sdk.volumes.main, subpath: './recorder-sync/status.json' },
-  z.object({
-    updatedAt: z.string().catch(''),
+  z.looseObject({
     links: z
       .record(
         z.string(),
-        z.object({
+        z.looseObject({
           state: z.string().catch('importing'),
-          error: z.string().optional().catch(undefined),
-          lastPointAt: z.string().optional().catch(undefined),
+          code: z.string().optional().catch(undefined),
+          detail: z.string().optional().catch(undefined),
+          newestAt: z.string().optional().catch(undefined),
         }),
       )
       .catch({}),
   }),
 )
+
+export function recorderInstalled(effects: T.Effects) {
+  return sdk.getServiceManifest(effects, RECORDER_ID, (m) => m !== null)
+}
+
+// Recorder users that have stored at least one publish.
+export async function listRecorderUsers(effects: T.Effects): Promise<string[]> {
+  try {
+    return await sdk.SubContainer.withTemp(
+      effects,
+      { imageId: 'valkey' },
+      recorderMounts,
+      'list-recorder-users',
+      async (sub) => {
+        const res = await sub.execFail([
+          'find',
+          RECORDER_PATH,
+          '-mindepth',
+          '1',
+          '-maxdepth',
+          '1',
+          '-type',
+          'd',
+        ])
+        return res.stdout
+          .toString()
+          .split('\n')
+          .map((line) => line.slice(RECORDER_PATH.length + 1))
+          .filter((name) => name.length > 0)
+          .sort()
+      },
+    )
+  } catch {
+    return []
+  }
+}
+
+export async function listDawarichAccounts(
+  effects: T.Effects,
+): Promise<{ id: number; email: string }[]> {
+  const out = await queryDatabase(
+    effects,
+    'SELECT id, email FROM users ORDER BY id',
+  )
+  return (out ?? '')
+    .split('\n')
+    .filter((line) => line.includes('\t'))
+    .map((line) => {
+      const [id, email] = line.split('\t')
+      return { id: Number(id), email }
+    })
+}

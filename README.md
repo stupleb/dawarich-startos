@@ -52,7 +52,7 @@ Three images run as five processes. The Dawarich image is upstream's, unmodified
 
 Start order: `postgres` and `valkey` → `setup` → `admin-applied` (clears the pending-password flag once `setup` has applied it) → `web` → `sidekiq` and `recorder-sync`.
 
-- **`setup`** installs this server's root CA into the container's trust store, runs `rails db:migrate`, and runs `assets/admin.rb` under `rails runner` — which creates the admin account on an empty database, and applies a password the Set Admin Password action could not apply itself.
+- **`setup`** installs this server's root CA into the container's trust store, runs `rails db:migrate`, and runs `assets/admin.rb` under `rails runner` — which creates the admin account on an empty database, and applies an email and password the Set Admin Password action could not apply itself.
 - **`web`** runs upstream's `web-entrypoint.sh` (migrations, data migrations, `db:seed`, then Puma on port 3000 with one worker).
 - **`sidekiq`** runs upstream's `sidekiq-entrypoint.sh` with three job threads.
 - **`recorder-sync`** runs `assets/recorder-sync.rb`, a stdlib-only Ruby script, in its own subcontainer of the Dawarich image.
@@ -73,7 +73,7 @@ Four volumes. Only the database and the files Dawarich stores are user data; the
 
 The location history itself — points, tracks, visits, places, trips, stats — is in PostgreSQL.
 
-`/var/app/public` is not a volume: nothing writes there at runtime, so the image's own assets are always current. `/var/app/tmp` (export and import staging, and the watched-import folder) is ephemeral.
+`/var/app/public` is not a volume: upstream's web entrypoint refreshes it from the image on every start. `/var/app/tmp` (export and import staging, and the watched-import folder) is ephemeral.
 
 ## File Models
 
@@ -84,14 +84,14 @@ One model, `store.json` on the `startos` volume. Dawarich itself has no configur
 | `postgresPassword`     | Install                                         | Internal                                                                     |
 | `secretKeyBase`        | Install                                         | Rails' `SECRET_KEY_BASE`; also the key for archived raw data. Never changes. |
 | `otp*` (three keys)    | Install                                         | Encryption keys that make two-factor sign-in available. Never change.        |
-| `adminEmail`           | Default `admin@dawarich.local`                  | The email the admin account is created with                                  |
+| `adminEmail`           | Set Admin Password                              | The admin's sign-in email as the package last set it                         |
 | `adminPassword`        | Set Admin Password                              | The last password the package issued                                         |
 | `adminPasswordPending` | Set Admin Password, `setup`                     | `true` while an issued password has not reached the database                 |
-| `primaryUrl`           | Install (the `.local` address), Set Primary URL | Becomes `DOMAIN`, the host in links inside Dawarich's emails                 |
+| `primaryUrl`           | Set Primary URL                                 | The address chosen for email links; unset until the action runs              |
 | `smtp`                 | Configure SMTP                                  | Becomes the `SMTP_*` variables                                               |
 | `recorderLinks`        | Link / Unlink OwnTracks Recorder User           | Recorder user → Dawarich account id and email                                |
 
-Variables re-asserted on every start: the database, Valkey and secret variables; `APPLICATION_HOSTS` (see [Network Access and Interfaces](#network-access-and-interfaces)); `APPLICATION_PROTOCOL=http`; `TIME_ZONE=UTC`; `WEB_CONCURRENCY=1`; `BACKGROUND_PROCESSING_CONCURRENCY=3`; `PROMETHEUS_EXPORTER_ENABLED=false`; `DOMAIN`; and the `SMTP_*` set.
+Variables re-asserted on every start: the database, Valkey and secret variables; `APPLICATION_HOSTS` (see [Network Access and Interfaces](#network-access-and-interfaces)); `APPLICATION_PROTOCOL=http`; `TIME_ZONE=UTC`; `WEB_CONCURRENCY=1`; `BACKGROUND_PROCESSING_CONCURRENCY=3`; `PROMETHEUS_EXPORTER_ENABLED=false`; the `SMTP_*` set; and `DOMAIN`, the host and port of the address email links use. That is `primaryUrl` followed to its hostname's current port; while it is unset or no longer one of the interface's addresses, a public domain if there is one, else the `.local` address. Only HTTPS addresses qualify, because Dawarich writes `https://` into every email link. Dawarich restarts when that address changes.
 
 **What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings.
 
@@ -99,15 +99,15 @@ Variables re-asserted on every start: the database, Valkey and secret variables;
 
 ## Dependencies
 
-One optional dependency, declared only while at least one Recorder user is linked.
+One optional dependency, enabled only while at least one Recorder user is linked. While it is enabled, StartOS expects OwnTracks Recorder to be running with its **MQTT Broker** (`mosquitto`) and **Recorder** (`recorder`) checks passing, and shows a warning on Dawarich's page when it isn't. That never stops Dawarich from starting.
 
-| Dependency         | Required | Mount                                                                                         | Why                                                                  |
-| ------------------ | -------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| OwnTracks Recorder | No       | its `main` volume, subpath `recorder/rec`, at `/recorder`, read-only, in `recorder-sync` only | The per-user, per-device, per-month `.rec` files the Recorder stores |
+| Dependency         | Required                                    | Mount                                                                                         | Why                                                                  |
+| ------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| OwnTracks Recorder | No; expected running while a user is linked | its `main` volume, subpath `recorder/rec`, at `/recorder`, read-only, in `recorder-sync` only | The per-user, per-device, per-month `.rec` files the Recorder stores |
 
 Only the `rec/` tree is mounted. The Recorder's `store.json`, which holds every MQTT password, is outside it.
 
-**How the sync works.** For each link, `recorder-sync` first uploads each of the user's existing `.rec` files through Dawarich's imports API (`POST /api/v1/imports`) with the linked account's API key, then polls the files every 15 seconds and sends each new location to Dawarich's OwnTracks endpoint (`POST /api/v1/owntracks/points`). Byte offsets per file are saved in `state.json`, so a restart resumes where it stopped; a new month's or new device's file is followed from its start. Only the Recorder's plain location records are sent — the same subset Dawarich's own `.rec` importer takes. Each record gets its `topic` added before it is sent, because the Recorder does not store one for MQTT publishes and Dawarich converts OwnTracks speed from km/h to m/s only when it is present. The API key is read from Dawarich's database at start and re-read on a `401`, so regenerating it in Dawarich does not break the sync. Dawarich ignores a point it already has, so overlapping imports and resends are harmless.
+**How the sync works.** For each link, `recorder-sync` first uploads each of the user's `.rec` files through Dawarich's imports API (`POST /api/v1/imports`) with the linked account's API key, and counts a file done only once Dawarich reports that import completed (`GET /api/v1/imports/<id>`). An import Dawarich marks failed is reported by the sync check and uploaded again at the next start. After that, it polls the files every 15 seconds and sends each new location to Dawarich's OwnTracks endpoint (`POST /api/v1/owntracks/points`), which stores it before answering. Byte offsets per file are saved in `state.json`, so a restart resumes where it stopped; a new month's or new device's file is followed from its start. Only the Recorder's plain location records are sent — the same subset Dawarich's own `.rec` importer takes. Each record gets its `topic` added before it is sent, because the Recorder does not store one for MQTT publishes and Dawarich converts OwnTracks speed from km/h to m/s only when it is present. The API key is read from Dawarich's database at start and re-read on a `401`, so regenerating it in Dawarich does not break the sync. Dawarich ignores a point it already has, so overlapping imports and resends are harmless.
 
 Nothing is sent to the Recorder, and the phones keep talking MQTT to it.
 
@@ -129,20 +129,22 @@ The map in the browser loads its tiles from `tyles.dwri.xyz`, Dawarich's tile se
 
 Nothing about the admin account is left to whoever opens the address first.
 
-1. Install generates the database password, `SECRET_KEY_BASE` and the three two-factor keys, and defaults the primary URL to the `.local` address.
-2. The critical **Set Admin Password** task blocks the first start. Running it generates the password and shows the login email.
-3. The first start runs every migration, then `setup` creates the admin before upstream's `db:seed` runs. `db:seed` creates `demo@dawarich.app` / `safepassword` only when there are no users, so on this package that account never exists. It still loads the country borders, regions and default tags.
+1. Install generates the database password, `SECRET_KEY_BASE` and the three two-factor keys. No primary URL is stored; email links use the fallback address until Set Primary URL runs.
+2. The critical **Set Admin Password** task blocks the first start. It asks for the email the admin will sign in with, generates the password, and shows both.
+3. The first start runs every migration, then `setup` creates the admin with that email before upstream's `db:seed` runs. `db:seed` creates `demo@dawarich.app` / `safepassword` only when there are no users, so on this package that account never exists. It still loads the country borders, regions and default tags.
 
 The first start takes about a minute on a small x86 server; later starts take under a minute.
 
 ## Actions
 
-Five actions. The two Recorder actions sit in an **OwnTracks Recorder** group.
+Five actions. The two Recorder actions sit in an **OwnTracks Recorder** group and stay hidden until OwnTracks Recorder is installed; Unlink also needs a linked user.
 
 ### Set Admin Password
 
-- **When:** first run (its task), or when the admin password is lost.
-- **What it changes:** generates a new password, stores it, and sets it on the admin account — the account with the stored email, or the oldest admin if that email was changed in Dawarich. It also unlocks the account if too many failed sign-ins locked it.
+- **When:** first run (its task), when the admin password is lost, or to change the admin's sign-in email.
+- **Input:** the email. On later runs it is pre-filled with the admin's current email, read from Dawarich's database while it is running.
+- **What it changes:** generates a new password and sets it, with the email, on the package's admin account — the oldest account with admin rights. A different email renames that account. It also unlocks the account if too many failed sign-ins locked it.
+- **Refuses** an email that another Dawarich account already uses, and changes nothing. If that clash only shows up at the next start (the password was set while Dawarich was stopped), the password is applied and the account keeps its current email.
 - **Cost:** while Dawarich is running, about ten seconds (a temporary Rails process applies it at once, with no restart). While it is stopped, instant; the password is applied at the next start.
 - **Repeat safety:** each run replaces the password.
 - **Outputs:** the admin's sign-in email and the new password.
@@ -156,15 +158,15 @@ Five actions. The two Recorder actions sit in an **OwnTracks Recorder** group.
 
 ### Set Primary URL
 
-- **When:** to choose the address links in Dawarich's emails point to.
-- **What it changes:** `primaryUrl`, then `DOMAIN`.
+- **When:** to choose the address links in Dawarich's emails point to. Not needed while the fallback address suits.
+- **What it changes:** `primaryUrl`, then `DOMAIN`. Only HTTPS addresses are offered.
 - **Cost:** restarts Dawarich.
 - **Repeat safety:** idempotent.
 
 ### Link OwnTracks Recorder User
 
 - **When:** to have a Recorder user's history in a Dawarich account and keep it current.
-- **What it changes:** adds or replaces that Recorder user's entry in `recorderLinks`; the dependency is declared.
+- **What it changes:** adds or replaces that Recorder user's entry in `recorderLinks`, which enables the dependency. Refuses a Recorder user with no stored locations.
 - **Cost:** restarts Dawarich; the history import then runs in the background, as ordinary Dawarich imports visible on the account's Imports page.
 - **Repeat safety:** linking the same Recorder user again replaces its account. Linking it back to an account it was linked to before resumes from the saved offsets. Nothing is duplicated either way.
 - **Needs:** Dawarich running (the accounts are read from its database), and at least one Recorder user with a stored location.
@@ -178,14 +180,13 @@ Five actions. The two Recorder actions sit in an **OwnTracks Recorder** group.
 
 ## Tasks
 
-Two tasks, one of them critical.
+One task, and it is critical.
 
-| Task               | Severity    | Raised when                                                                                 | Cleared when                        |
-| ------------------ | ----------- | ------------------------------------------------------------------------------------------- | ----------------------------------- |
-| Set Admin Password | `critical`  | No admin password is stored — on install, and on any init that finds none                   | Set Admin Password runs             |
-| Set Primary URL    | `important` | SMTP is not disabled and the stored primary URL is no longer one of the service's addresses | Set Primary URL picks a current one |
+| Task               | Severity   | Raised when                                                               | Cleared when            |
+| ------------------ | ---------- | ------------------------------------------------------------------------- | ----------------------- |
+| Set Admin Password | `critical` | No admin password is stored — on install, and on any init that finds none | Set Admin Password runs |
 
-A service that will not start and offers no Start button is waiting on the admin-password task.
+A service that will not start and offers no Start button is waiting on the admin-password task. A lost primary URL raises nothing: email links move to the fallback address on their own.
 
 ## Health Checks
 
@@ -195,11 +196,13 @@ Three checks are shown, plus one that appears only when something is wrong. The 
 | ----------------------- | --------------------------------------------------------------------- | ----- |
 | Web Interface           | Port 3000 is listening — Puma binds only after the app has loaded     | 5 min |
 | Background Jobs         | Sidekiq's process registry in Valkey (database 1) is not empty        | 2 min |
-| OwnTracks Recorder Sync | `status.json` written by `recorder-sync`; only while a user is linked | 1 min |
+| OwnTracks Recorder Sync | The Recorder's run state, then `status.json` written by `recorder-sync`; only while a user is linked | 1 min |
 
 - **Web Interface failing past its grace period:** the log shows why — a migration error from `setup`, or Puma failing to boot. `setup` failing stops the chain before `web` starts.
 - **Background Jobs failing:** imports stay "created", stats and tracks are not generated, and emails are not sent. Look for Sidekiq's error in the log.
-- **OwnTracks Recorder Sync:** `loading` while a history import is being uploaded; `failure` carries the script's error, most often a Dawarich account that was deleted (unlink and relink) or Dawarich not answering. A failing link does not stop the others.
+- **OwnTracks Recorder Sync, healthy:** names each linked Recorder user with the date of the newest location the Recorder holds for them. A date that stops moving means that phone is no longer reaching the Recorder — check the phone's OwnTracks connection settings and the Recorder's log, not Dawarich.
+- **OwnTracks Recorder Sync, `loading`:** "Paused" while OwnTracks Recorder is stopped (start it; whatever it records after it starts is forwarded then), or "Importing" until Dawarich has finished the history imports.
+- **OwnTracks Recorder Sync, `failure`:** names the Recorder user and the problem. A deleted Dawarich account: unlink and link again. An import Dawarich could not process: its reason is shown and on the account's Imports page; restart Dawarich to upload it again. Anything else carries the script's error. A failing link does not stop the others.
 - **OwnTracks Recorder Sync — "not installed":** a link exists but the Recorder is not installed. Install it, or unlink the user.
 
 Four log lines look like faults and are not:
@@ -215,21 +218,23 @@ The database is dumped, not copied: `sdk.Backups.withPgDump` runs `pg_dump` of t
 
 - **Included:** the whole location history and every Dawarich setting (database), uploaded import files, exports, posters and videos (`main`), sync progress, and `store.json` with its secrets and credentials.
 - **Excluded:** the `valkey` volume. A restored instance starts with an empty job queue and cache, and Dawarich's in-app **sign-up** switch (kept only in that cache) is back to off.
-- **After a restore:** nothing to redo. The admin password and the Recorder links come back with `store.json`; the sync resumes from its saved offsets.
+- **After a restore:** nothing to redo. The admin password and the Recorder links come back with `store.json`; the sync resumes from its saved offsets, and `DOMAIN` follows the chosen address to its new port.
 
 ## Limitations and Differences
 
-1. **The demo account is never created,** and the admin signs in as `admin@dawarich.local` until changed in Dawarich.
-2. **The OwnTracks Recorder sync is one-way and polled:** new locations arrive within about 15 seconds, and deleting tracks in the Recorder does not delete them in Dawarich.
+What the package leaves out or does differently from upstream's Docker setup.
+
+1. **The demo account is never created.** The admin account is created with the email given to Set Admin Password.
+2. **The OwnTracks Recorder sync is one-way and polled,** so deleting tracks in the Recorder does not delete them in Dawarich.
 3. **Only locations are synced from the Recorder** — not waypoints, region transitions, cards or friends.
-4. **The sign-up switch in Dawarich's user settings does not survive a restore,** because upstream keeps it only in the cache.
-5. **No OIDC sign-in, S3 storage, Prometheus metrics or watched-import folder** — none of them is configured by the package.
-6. **Map tiles are fetched by the browser from Dawarich's tile server** unless a user sets their own.
-7. **No armv7 or riscv64 build.**
+4. **No OIDC sign-in, S3 storage, Prometheus metrics or watched-import folder** — none of them is configured by the package.
+5. **No armv7 or riscv64 build.**
 
 ---
 
 ## Quick Reference for AI Consumers
+
+The package's operable surface in one block; each key mirrors a section above.
 
 ```yaml
 package_id: dawarich
@@ -271,18 +276,17 @@ startos_managed_env_vars:
   - DOMAIN
   - SMTP_SERVER # and the rest of SMTP_*, only when SMTP is configured
 dependencies:
-  - owntracks-recorder # optional; declared only while a user is linked
+  - owntracks-recorder # optional; enabled while a user is linked, then expected running
 interfaces:
   ui: { type: ui, port: 3000 }
 actions:
   - set-admin-password
   - configure-smtp
   - set-primary-url
-  - link-recorder-user
+  - link-recorder-user # hidden until OwnTracks Recorder is installed
   - unlink-recorder-user # hidden until a user is linked
 tasks:
   - { action: set-admin-password, severity: critical }
-  - { action: set-primary-url, severity: important }
 health_checks:
   - web
   - sidekiq
