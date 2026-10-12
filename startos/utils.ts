@@ -1,4 +1,16 @@
-import { FileHelper, SmtpSelection, T, utils, z } from '@start9labs/start-sdk'
+import {
+  ExtendedVersion,
+  FileHelper,
+  SmtpSelection,
+  T,
+  utils,
+  VersionRange,
+  z,
+} from '@start9labs/start-sdk'
+import {
+  uiHostId as immichHostId,
+  uiPort as immichPort,
+} from 'immich-startos/startos/utils'
 import { manifest as recorderManifest } from 'owntracks-recorder-startos/startos/manifest'
 import { storeJson } from './fileModels/store.json'
 import { i18n } from './i18n'
@@ -16,6 +28,9 @@ export const ASSETS_PATH = '/startos'
 export const RECORDER_ID = 'owntracks-recorder'
 export const RECORDER_PATH = '/recorder'
 export const SYNC_STATE_PATH = '/sync'
+export const IMMICH_ID = 'immich'
+export const immichMinVersion = '3.3.1:2'
+export const immichVersionRange = `>=${immichMinVersion}`
 
 export const dbMounts = sdk.Mounts.of().mountVolume({
   volumeId: 'db',
@@ -313,4 +328,148 @@ export async function listDawarichAccounts(
       const [id, email] = line.split('\t')
       return { id: Number(id), email }
     })
+}
+
+export function immichVersion(effects: T.Effects) {
+  return sdk.getServiceManifest(effects, IMMICH_ID, (m) => m?.version ?? null)
+}
+
+export function immichSupported(version: string) {
+  return ExtendedVersion.parse(version).satisfies(
+    VersionRange.parse(immichVersionRange),
+  )
+}
+
+export function immichBridgeAddress(effects: T.Effects) {
+  return sdk.host.getBridgeAddress(effects, {
+    packageId: IMMICH_ID,
+    hostId: immichHostId,
+    internalPort: immichPort,
+    ssl: false,
+  })
+}
+
+// Immich's actions admit only a declared dependent; on success the store keeps Immich declared.
+export async function withImmichDependency<R>(
+  effects: T.Effects,
+  fn: () => Promise<R>,
+): Promise<R> {
+  const previous = await effects.getDependencies()
+  if (!previous.some((d) => d.id === IMMICH_ID))
+    await effects.setDependencies({
+      dependencies: [
+        ...previous,
+        {
+          id: IMMICH_ID,
+          kind: 'running',
+          versionRange: immichVersionRange,
+          healthChecks: [],
+        },
+      ],
+    })
+  try {
+    return await fn()
+  } catch (e) {
+    await effects.setDependencies({ dependencies: previous })
+    throw e
+  }
+}
+
+export async function listImmichUsers(
+  effects: T.Effects,
+): Promise<{ id: string; email: string }[]> {
+  // sdk.action.run sends no `input` for an action without one, which StartOS rejects.
+  const res = await effects.action.run({
+    packageId: IMMICH_ID,
+    actionId: 'list-users',
+    input: {},
+  })
+  return res?.version === '1' && res.result?.type === 'group'
+    ? res.result.value.flatMap((m) =>
+        m.type === 'single' ? [{ id: m.value, email: m.name }] : [],
+      )
+    : []
+}
+
+export async function createImmichKey(
+  effects: T.Effects,
+  userId: string,
+  permissions: string[],
+): Promise<{ secret: string; id: string }> {
+  const res = await sdk.action.run({
+    effects,
+    packageId: IMMICH_ID,
+    actionId: 'create-api-key',
+    input: () => ({ userId, name: 'Dawarich', permissions }),
+  })
+  const fields: Record<string, string> = Object.fromEntries(
+    res?.version === '1' && res.result?.type === 'group'
+      ? res.result.value.flatMap((m) =>
+          m.type === 'single' ? [[m.name, m.value]] : [],
+        )
+      : [],
+  )
+  if (!fields.secret || !fields.id)
+    throw new Error(i18n('Immich did not return an API key'))
+  return { secret: fields.secret, id: fields.id }
+}
+
+// Succeeds when the key is already gone.
+export async function deleteImmichKey(
+  effects: T.Effects,
+  userId: string,
+  keyId: string,
+) {
+  await sdk.action.run({
+    effects,
+    packageId: IMMICH_ID,
+    actionId: 'delete-api-key',
+    input: () => ({ userId, keyId }),
+  })
+}
+
+// Resolves Dawarich's connection-test alert, or null when the settings saved cleanly.
+export async function saveImmichSettings(
+  effects: T.Effects,
+  userId: number,
+  url: string,
+  apiKey: string,
+): Promise<string | null> {
+  const store = await storeJson.read().once()
+  const postgresPassword = store?.postgresPassword
+  const secretKeyBase = store?.secretKeyBase
+  if (!store || !postgresPassword || !secretKeyBase)
+    throw new Error(i18n('The package has not finished installing'))
+  return sdk.SubContainer.withTemp(
+    effects,
+    { imageId: 'dawarich' },
+    appMounts,
+    'save-immich-settings',
+    async (sub) => {
+      const res = await sub.exec(
+        ['bundle', 'exec', 'rails', 'runner', `${ASSETS_PATH}/immich.rb`],
+        {
+          cwd: '/var/app',
+          env: {
+            ...railsEnv({ ...store, postgresPassword, secretKeyBase }),
+            STARTOS_USER_ID: String(userId),
+            STARTOS_IMMICH_URL: url,
+            STARTOS_IMMICH_API_KEY: apiKey,
+          },
+          timeout: 300_000,
+        },
+      )
+      if (res.exitCode === 0) return null
+      const alerts = [
+        ...res.stdout.toString().matchAll(/^STARTOS_IMMICH_ALERT=(.*)$/gm),
+      ].map((m) => m[1])
+      if (res.exitCode === 2 && alerts.length) return alerts.join(' ')
+      console.error(`immich.rb failed: ${res.stderr.toString()}`)
+      throw new Error(
+        i18n(
+          'Dawarich could not save the Immich settings. The service log has the details.',
+        ),
+      )
+    },
+  )
 }
