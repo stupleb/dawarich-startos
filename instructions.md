@@ -9,6 +9,7 @@
 - **Dawarich with its own database**, ready to sign in to. The package creates the admin account for you, so the public demo login upstream ships with never exists on your server.
 - **One address for everything:** the **Web UI** interface is both the website you open and the address your phone apps send locations to.
 - **Optional OwnTracks Recorder sync:** if you already run OwnTracks Recorder on this server, Dawarich can import each person's history from it and keep adding their new locations.
+- **Optional Immich photos:** if you run Immich on this server, Dawarich can show each person's photos on their map.
 - **Optional email** for password resets, family invitations and monthly digests.
 
 Your location history, uploaded files and settings are part of your StartOS backups.
@@ -56,6 +57,22 @@ The phones keep talking to OwnTracks Recorder, so its friends and map keep worki
 
 If you would rather not run OwnTracks Recorder at all, point the OwnTracks app at Dawarich instead, as described under **Connecting a phone**. To bring the history over first, link each person, wait until their import shows as completed on their **Imports** page, then unlink them.
 
+## Showing Immich photos
+
+This part is optional, and its actions only appear once Immich is installed.
+
+Dawarich can show each person's Immich photos on their map, at the places they were taken. It connects a Dawarich account to the Immich account that uses the same email address.
+
+1. Check that the person's Dawarich account (**Account** in Dawarich) and their Immich account use the same email address. Change one of them if they differ.
+2. With Dawarich and Immich running, run **Connect Immich** and choose the person's Dawarich account. Leave **Add locations to photos** off unless you want Dawarich's Enrich feature to write positions from their location history into their Immich photos that have none.
+3. Check the two accounts in the result, then open the person's map in Dawarich: their photos appear for the dates you view.
+
+Connect Immich creates an API key named "Dawarich" in the person's Immich account; they don't have to do anything in Immich, and whoever runs the action decides whose photos Dawarich reads. Running it again, for example to change **Add locations to photos**, replaces that key. **Disconnect Immich** stops Dawarich reading their photos and deletes the key.
+
+Photos without a location stay off the map. With **Add locations to photos** on, Dawarich's Enrich feature can add one from the person's location history.
+
+If you'd rather not give both accounts the same email, the person can connect under **Settings → Integrations** in Dawarich instead, with an API key they create in Immich and Immich's address. Use the LAN IP address shown on Immich's **Web UI** interface, port included, such as `https://192.168.1.20:12345`: Dawarich can't reach `.local` addresses from inside StartOS.
+
 ## Moving your data
 
 - **Out of Dawarich, or into another Dawarich:** each person's **Account** page has **Export my data**, which builds an archive of everything in their account, and **Import my data**, which restores such an archive.
@@ -74,6 +91,7 @@ Without email, you can still invite family members: Dawarich shows a link to cop
 - **Set Admin Password:** sets the admin's sign-in email and generates a new password, also unlocking the account if it was locked after failed sign-ins. Use it to change that email or if you lose the password.
 - **Configure SMTP** and **Set Primary URL:** see **Email** above.
 - **Link OwnTracks Recorder User** and **Unlink OwnTracks Recorder User:** see **Using Dawarich with OwnTracks Recorder** above.
+- **Connect Immich** and **Disconnect Immich:** see **Showing Immich photos** above.
 
 ## Limitations
 

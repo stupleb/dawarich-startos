@@ -7,6 +7,13 @@ const recorderLink = z.looseObject({
   email: z.string(),
 })
 
+const immichConnection = z.looseObject({
+  userId: z.number().int(),
+  email: z.string(),
+  immichUserId: z.string(),
+  keyId: z.string(),
+})
+
 const shape = z.looseObject({
   postgresPassword: z.string().optional().catch(undefined),
   secretKeyBase: z.string().optional().catch(undefined),
@@ -20,6 +27,7 @@ const shape = z.looseObject({
   primaryUrl: z.string().optional().catch(undefined),
   smtp: smtpShape,
   recorderLinks: z.array(recorderLink).catch([]),
+  immichConnections: z.array(immichConnection).catch([]),
 })
 
 export type RecorderLink = z.infer<typeof recorderLink>

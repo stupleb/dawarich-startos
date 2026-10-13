@@ -31,3 +31,16 @@ export const recorderDescription = {
   fr_FR:
     "Permet à Dawarich d'importer et de suivre l'historique de localisation des utilisateurs d'OwnTracks Recorder sur ce serveur. Nécessaire uniquement pour cette fonction.",
 }
+
+export const immichDescription = {
+  en_US:
+    'Lets Dawarich show the Immich photos of connected people on their maps. Only needed for that feature.',
+  es_ES:
+    'Permite a Dawarich mostrar en sus mapas las fotos de Immich de las personas conectadas. Solo es necesario para esa función.',
+  de_DE:
+    'Ermöglicht Dawarich, die Immich-Fotos verbundener Personen auf ihren Karten zu zeigen. Nur für diese Funktion nötig.',
+  pl_PL:
+    'Pozwala Dawarich pokazywać na mapach zdjęcia z Immich połączonych osób. Potrzebne tylko do tej funkcji.',
+  fr_FR:
+    'Permet à Dawarich d’afficher sur leurs cartes les photos Immich des personnes connectées. Nécessaire uniquement pour cette fonction.',
+}

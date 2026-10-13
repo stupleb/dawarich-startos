@@ -72,6 +72,36 @@ const dict = {
   'Linked user': 45,
   'Unlink OwnTracks Recorder User': 46,
   'Stop adding an OwnTracks Recorder user’s new locations to Dawarich. Locations already in Dawarich stay. Dawarich restarts to apply the change.': 47,
+
+  // utils.ts (Immich)
+  'Immich did not return an API key': 59,
+  'Dawarich could not save the Immich settings. The service log has the details.': 60,
+
+  // actions/connectImmich.ts
+  'Connected to the Immich account with the same email address.': 61,
+  'Add locations to photos': 62,
+  'Lets Dawarich’s Enrich feature write positions from this person’s location history into their Immich photos that have none. Off, Dawarich can only read their photos.': 63,
+  'Connect Immich': 64,
+  'Show a person’s Immich photos on their Dawarich map. Connects their Dawarich account to the Immich account with the same email address, using a new Immich API key.': 65,
+  Immich: 66,
+  'Requires Immich ${version} or later': 67,
+  'Start Immich first': 68,
+  'Immich has no address Dawarich can reach': 69,
+  'No Immich account uses ${email}. Give both accounts the same email address, or connect this person on their Integrations page in Dawarich with an API key they create in Immich.': 70,
+  'Dawarich could not reach Immich: ${detail}': 71,
+  'Immich Connected': 72,
+  'Dawarich shows this person’s Immich photos on their map. Immich lists the key Dawarich uses as “Dawarich” among that account’s API keys.': 73,
+  'Immich account': 74,
+  Access: 75,
+  'Read photos and add locations': 76,
+  'Read photos': 77,
+
+  // actions/disconnectImmich.ts
+  'Disconnect Immich': 78,
+  'Stop showing a person’s Immich photos in Dawarich, and delete the Immich API key Dawarich used for them.': 79,
+  'That account is not connected to Immich': 80,
+  'Immich Disconnected': 81,
+  'Dawarich no longer reads ${email}’s Immich photos, and the key it used is deleted from Immich.': 82,
 } as const
 
 /**
