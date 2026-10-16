@@ -1,6 +1,7 @@
 import {
   ExtendedVersion,
   FileHelper,
+  healthFns,
   SmtpSelection,
   T,
   utils,
@@ -11,8 +12,9 @@ import {
   uiHostId as immichHostId,
   uiPort as immichPort,
 } from 'immich-startos/startos/utils'
+import { createHash, randomBytes } from 'node:crypto'
 import { manifest as recorderManifest } from 'owntracks-recorder-startos/startos/manifest'
-import { storeJson } from './fileModels/store.json'
+import { ImmichConnection, ImmichKey, storeJson } from './fileModels/store.json'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
 
@@ -29,7 +31,7 @@ export const RECORDER_ID = 'owntracks-recorder'
 export const RECORDER_PATH = '/recorder'
 export const SYNC_STATE_PATH = '/sync'
 export const IMMICH_ID = 'immich'
-export const immichMinVersion = '3.3.1:2'
+export const immichMinVersion = '3.3.3:1'
 export const immichVersionRange = `>=${immichMinVersion}`
 
 export const dbMounts = sdk.Mounts.of().mountVolume({
@@ -334,6 +336,10 @@ export function immichVersion(effects: T.Effects) {
   return sdk.getServiceManifest(effects, IMMICH_ID, (m) => m?.version ?? null)
 }
 
+export function immichInstalled(effects: T.Effects) {
+  return sdk.getServiceManifest(effects, IMMICH_ID, (m) => m !== null)
+}
+
 export function immichSupported(version: string) {
   return ExtendedVersion.parse(version).satisfies(
     VersionRange.parse(immichVersionRange),
@@ -375,57 +381,94 @@ export async function withImmichDependency<R>(
   }
 }
 
-export async function listImmichUsers(
-  effects: T.Effects,
-): Promise<{ id: string; email: string }[]> {
-  // sdk.action.run sends no `input` for an action without one, which StartOS rejects.
-  const res = await effects.action.run({
-    packageId: IMMICH_ID,
-    actionId: 'list-users',
-    input: {},
-  })
-  return res?.version === '1' && res.result?.type === 'group'
-    ? res.result.value.flatMap((m) =>
-        m.type === 'single' ? [{ id: m.value, email: m.name }] : [],
-      )
-    : []
+export function newImmichKey(enrich: boolean): ImmichKey {
+  const secret = randomBytes(32).toString('base64url')
+  return {
+    secret,
+    keyHash: createHash('sha256').update(secret).digest('hex'),
+    enrich,
+  }
 }
 
-export async function createImmichKey(
+// Immich releases differ in whether their form takes a label and offers asset.update.
+export async function requestImmichAccess(
   effects: T.Effects,
-  userId: string,
-  permissions: string[],
-): Promise<{ secret: string; id: string }> {
-  const res = await sdk.action.run({
-    effects,
-    packageId: IMMICH_ID,
-    actionId: 'create-api-key',
-    input: () => ({ userId, name: 'Dawarich', permissions }),
-  })
-  const fields: Record<string, string> = Object.fromEntries(
-    res?.version === '1' && res.result?.type === 'group'
-      ? res.result.value.flatMap((m) =>
-          m.type === 'single' ? [[m.name, m.value]] : [],
-        )
-      : [],
-  )
-  if (!fields.secret || !fields.id)
-    throw new Error(i18n('Immich did not return an API key'))
-  return { secret: fields.secret, id: fields.id }
-}
-
-// Succeeds when the key is already gone.
-export async function deleteImmichKey(
-  effects: T.Effects,
-  userId: string,
-  keyId: string,
+  key: ImmichKey,
+  label: string,
 ) {
   await sdk.action.run({
     effects,
     packageId: IMMICH_ID,
-    actionId: 'delete-api-key',
-    input: () => ({ userId, keyId }),
+    actionId: 'request-access',
+    input: ({ spec }) => {
+      if (
+        key.enrich &&
+        !(
+          spec.permissions?.type === 'multiselect' &&
+          'asset.update' in spec.permissions.values
+        )
+      )
+        throw new Error(
+          i18n(
+            'This Immich can’t let Dawarich add locations to photos. Run Connect Immich with Add locations to photos off, or update Immich.',
+          ),
+        )
+      return {
+        keyHash: key.keyHash,
+        permissions: [
+          'asset.read',
+          'asset.view',
+          'user.read',
+          ...(key.enrich ? ['asset.update'] : []),
+        ],
+        ...('label' in spec ? { label: label.slice(0, 64) } : {}),
+      }
+    },
   })
+}
+
+// A null hash revokes every key Dawarich holds in Immich.
+export async function revokeImmichAccess(
+  effects: T.Effects,
+  keyHash: string | null,
+) {
+  await sdk.action.run({
+    effects,
+    packageId: IMMICH_ID,
+    actionId: 'revoke-access',
+    input: () => ({ keyHash }),
+  })
+}
+
+// Immich answers 401 until the user approves the key.
+async function immichKeyAccount(url: string, secret: string) {
+  const res = await fetch(`${url}/api/users/me`, {
+    headers: { 'x-api-key': secret },
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null)
+  if (res?.status === 401) return 'unapproved'
+  if (!res?.ok) return 'no-answer'
+  return (await res.json()) as { email: string }
+}
+
+export async function updateImmichConnection(
+  effects: T.Effects,
+  userId: number,
+  change: (c: ImmichConnection | undefined) => ImmichConnection | null,
+): Promise<ImmichConnection | null> {
+  let next: ImmichConnection | null = null
+  await storeJson.update(effects, (s) => {
+    if (!s) return null
+    next = change(s.immichConnections.find((c) => c.userId === userId))
+    return {
+      ...s,
+      immichConnections: [
+        ...s.immichConnections.filter((c) => c.userId !== userId),
+        ...(next ? [next] : []),
+      ],
+    }
+  })
+  return next
 }
 
 // Resolves Dawarich's connection-test alert, or null when the settings saved cleanly.
@@ -472,4 +515,145 @@ export async function saveImmichSettings(
       )
     },
   )
+}
+
+// Puts a key Immich approved into use, or withdraws it with the reason it can't be used.
+async function adoptImmichKey(
+  effects: T.Effects,
+  c: ImmichConnection,
+  key: ImmichKey,
+  url: string,
+  immichEmail: string,
+): Promise<ImmichConnection['problem']> {
+  let problem: ImmichConnection['problem'] = null
+  if (immichEmail.toLowerCase() !== c.email.toLowerCase()) {
+    problem = { code: 'wrong-account', detail: immichEmail }
+  } else if (
+    !(await listDawarichAccounts(effects)).some((a) => a.id === c.userId)
+  ) {
+    problem = { code: 'account-missing', detail: '' }
+  } else {
+    const alert = await saveImmichSettings(effects, c.userId, url, key.secret)
+    if (alert) problem = { code: 'failed', detail: alert }
+  }
+  if (problem) await revokeImmichAccess(effects, key.keyHash)
+
+  const now = await updateImmichConnection(effects, c.userId, (current) =>
+    current?.pendingKey?.keyHash !== key.keyHash
+      ? (current ?? null)
+      : problem
+        ? { ...current, pendingKey: null, problem }
+        : { ...current, key, pendingKey: null, problem: null },
+  )
+  if (problem) return problem
+  // Disconnect Immich ran while the settings were being saved.
+  if (!now) await saveImmichSettings(effects, c.userId, '', '')
+  else if (
+    now.key?.keyHash === key.keyHash &&
+    c.key &&
+    c.key.keyHash !== key.keyHash
+  )
+    await revokeImmichAccess(effects, c.key.keyHash).catch((e) =>
+      console.error(`Could not revoke the replaced Immich key: ${e}`),
+    )
+  return null
+}
+
+// Also puts the keys Immich has approved into use.
+export async function checkImmichAccess(
+  effects: T.Effects,
+): Promise<healthFns.HealthCheckResult> {
+  const connections = (
+    (await storeJson.read((s) => s.immichConnections).once()) ?? []
+  ).filter((c) => c.key || c.pendingKey || c.problem)
+  if (!connections.length)
+    return {
+      result: 'disabled',
+      message: i18n('No Dawarich account is connected to Immich'),
+    }
+  if (!(await sdk.getStatus(effects, { packageId: IMMICH_ID }).once())?.started)
+    return {
+      result: 'loading',
+      message: i18n('Paused while Immich is stopped'),
+    }
+  const address = await immichBridgeAddress(effects).once()
+  if (!address)
+    return {
+      result: 'failure',
+      message: i18n('Immich has no address Dawarich can reach'),
+    }
+  const url = `http://${address}`
+  const noAnswer: healthFns.HealthCheckResult = {
+    result: 'loading',
+    message: i18n('Waiting for Immich to answer'),
+  }
+
+  const failures: string[] = []
+  const waiting: string[] = []
+  const connected: string[] = []
+  for (const c of connections) {
+    const { email } = c
+    let problem = c.problem
+    if (c.pendingKey) {
+      const account = await immichKeyAccount(url, c.pendingKey.secret)
+      if (account === 'no-answer') return noAnswer
+      if (account === 'unapproved') {
+        waiting.push(
+          i18n(
+            'Approve Dawarich’s request for ${email} in Immich’s tasks. If you denied it, run Disconnect Immich to stop asking, or Connect Immich to ask again.',
+            { email },
+          ),
+        )
+        continue
+      }
+      problem = await adoptImmichKey(
+        effects,
+        c,
+        c.pendingKey,
+        url,
+        account.email,
+      )
+      if (!problem) {
+        connected.push(email)
+        continue
+      }
+    }
+    if (problem) {
+      failures.push(
+        problem.code === 'wrong-account'
+          ? i18n(
+              'Immich approved the request for ${email} with the account ${immich}. Run Connect Immich again and approve it with the Immich account that uses ${email}.',
+              { email, immich: problem.detail },
+            )
+          : problem.code === 'account-missing'
+            ? i18n(
+                'The Dawarich account ${email} no longer exists. Run Disconnect Immich for it.',
+                { email },
+              )
+            : i18n(
+                'Dawarich could not use Immich for ${email} (${detail}). Run Connect Immich again.',
+                { email, detail: problem.detail },
+              ),
+      )
+      continue
+    }
+    if (c.key) {
+      const account = await immichKeyAccount(url, c.key.secret)
+      if (account === 'no-answer') return noAnswer
+      if (account === 'unapproved')
+        failures.push(
+          i18n(
+            'Immich no longer accepts the key for ${email}. Run Connect Immich again.',
+            { email },
+          ),
+        )
+      else connected.push(email)
+    }
+  }
+  if (failures.length) return { result: 'failure', message: failures.join(' ') }
+  if (waiting.length) return { result: 'loading', message: waiting.join(' ') }
+  return {
+    result: 'success',
+    message: i18n('Connected: ${accounts}', { accounts: connected.join(', ') }),
+  }
 }

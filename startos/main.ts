@@ -9,10 +9,12 @@ import {
   RECORDER_PATH,
   SYNC_STATE_PATH,
   appMounts,
+  checkImmichAccess,
   databaseEnv,
   dbMounts,
   getApplicationHosts,
   getSmtpEnv,
+  immichInstalled,
   postgresEnv,
   primaryUrl,
   railsEnv,
@@ -56,6 +58,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
   }
 
   const recorderPresent = await recorderInstalled(effects).const()
+  const immichPresent = await immichInstalled(effects).const()
   const domain = urlHost(await primaryUrl.bestUsable(effects).const())
 
   const appEnv: Record<string, string> = {
@@ -373,6 +376,18 @@ export const main = sdk.setupMain(async ({ effects }) => {
                   'OwnTracks Recorder is not installed, so linked users are not being followed',
                 ),
               }),
+            },
+            requires: ['web'],
+          }
+        : null,
+    )
+    .addHealthCheck('immich', () =>
+      immichPresent
+        ? {
+            ready: {
+              display: i18n('Immich'),
+              trigger: sdk.trigger.cooldownTrigger(15_000),
+              fn: () => checkImmichAccess(effects),
             },
             requires: ['web'],
           }

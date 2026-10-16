@@ -7,11 +7,21 @@ const recorderLink = z.looseObject({
   email: z.string(),
 })
 
+const immichKey = z.looseObject({
+  secret: z.string(),
+  keyHash: z.string(),
+  enrich: z.boolean(),
+})
+
 const immichConnection = z.looseObject({
   userId: z.number().int(),
   email: z.string(),
-  immichUserId: z.string(),
-  keyId: z.string(),
+  key: immichKey.nullable().catch(null),
+  pendingKey: immichKey.nullable().catch(null),
+  problem: z
+    .looseObject({ code: z.string(), detail: z.string() })
+    .nullable()
+    .catch(null),
 })
 
 const shape = z.looseObject({
@@ -31,6 +41,8 @@ const shape = z.looseObject({
 })
 
 export type RecorderLink = z.infer<typeof recorderLink>
+export type ImmichKey = z.infer<typeof immichKey>
+export type ImmichConnection = z.infer<typeof immichConnection>
 
 export const storeJson = FileHelper.json(
   { base: sdk.volumes.startos, subpath: './store.json' },
