@@ -61,13 +61,16 @@ If you would rather not run OwnTracks Recorder at all, point the OwnTracks app a
 
 This part is optional, and its actions only appear once Immich is installed.
 
-Dawarich can show each person's Immich photos on their map, at the places they were taken. It connects a Dawarich account to the Immich account that uses the same email address.
+Dawarich can show each person's Immich photos on their map, at the places they were taken. You connect their Dawarich account in Dawarich, then approve it in Immich with the Immich account that uses the same email address.
 
 1. Check that the person's Dawarich account (**Account** in Dawarich) and their Immich account use the same email address. Change one of them if they differ.
 2. With Dawarich and Immich running, run **Connect Immich** and choose the person's Dawarich account. Leave **Add locations to photos** off unless you want Dawarich's Enrich feature to write positions from their location history into their Immich photos that have none.
-3. Check the two accounts in the result, then open the person's map in Dawarich: their photos appear for the dates you view.
+3. On Immich's page in StartOS, open the task that names **dawarich** and the person's email. Leave **Approve** selected, choose the person's account under **Immich Account**, and submit.
+4. Within a minute, Dawarich's **Immich** health check lists the person's email as connected. Open their map in Dawarich: their photos appear for the dates you view.
 
-Connect Immich creates an API key named "Dawarich" in the person's Immich account; they don't have to do anything in Immich, and whoever runs the action decides whose photos Dawarich reads. Running it again, for example to change **Add locations to photos**, replaces that key. **Disconnect Immich** stops Dawarich reading their photos and deletes the key.
+The person doesn't have to do anything in Immich, and whoever approves the request decides whose photos Dawarich reads. Immich lists the key Dawarich uses among that account's API keys as "StartOS: dawarich".
+
+Dawarich can't tell a denied request from one still waiting, so after a denial its **Immich** health check keeps asking for approval. Run **Disconnect Immich** to drop the request, or **Connect Immich** again to ask again. If you approved it with someone else's Immich account, the health check says so: run **Connect Immich** again. Running it again also changes **Add locations to photos**; the current connection keeps working until you approve the new request. **Disconnect Immich** stops Dawarich reading their photos and deletes the key in Immich.
 
 Photos without a location stay off the map. With **Add locations to photos** on, Dawarich's Enrich feature can add one from the person's location history.
 

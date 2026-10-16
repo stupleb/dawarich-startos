@@ -79,33 +79,33 @@ The location history itself — points, tracks, visits, places, trips, stats —
 
 One model, `store.json` on the `startos` volume. Dawarich itself has no configuration file: the package configures it entirely through environment variables, set on every start from `store.json` and the service's addresses.
 
-| Key                    | Set by                                | Notes                                                                        |
-| ---------------------- | ------------------------------------- | ---------------------------------------------------------------------------- |
-| `postgresPassword`     | Install                               | Internal                                                                     |
-| `secretKeyBase`        | Install                               | Rails' `SECRET_KEY_BASE`; also the key for archived raw data. Never changes. |
-| `otp*` (three keys)    | Install                               | Encryption keys that make two-factor sign-in available. Never change.        |
-| `adminEmail`           | Set Admin Password                    | The admin's sign-in email as the package last set it                         |
-| `adminPassword`        | Set Admin Password                    | The last password the package issued                                         |
-| `adminPasswordPending` | Set Admin Password, `setup`           | `true` while an issued password has not reached the database                 |
-| `primaryUrl`           | Set Primary URL                       | The address chosen for email links; unset until the action runs              |
-| `smtp`                 | Configure SMTP                        | Becomes the `SMTP_*` variables                                               |
-| `recorderLinks`        | Link / Unlink OwnTracks Recorder User | Recorder user → Dawarich account id and email                                |
-| `immichConnections`    | Connect / Disconnect Immich           | Dawarich account id and email → Immich account id and the id of its key      |
+| Key                    | Set by                                        | Notes                                                                                                                                                                                 |
+| ---------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgresPassword`     | Install                                       | Internal                                                                                                                                                                              |
+| `secretKeyBase`        | Install                                       | Rails' `SECRET_KEY_BASE`; also the key for archived raw data. Never changes.                                                                                                          |
+| `otp*` (three keys)    | Install                                       | Encryption keys that make two-factor sign-in available. Never change.                                                                                                                 |
+| `adminEmail`           | Set Admin Password                            | The admin's sign-in email as the package last set it                                                                                                                                  |
+| `adminPassword`        | Set Admin Password                            | The last password the package issued                                                                                                                                                  |
+| `adminPasswordPending` | Set Admin Password, `setup`                   | `true` while an issued password has not reached the database                                                                                                                          |
+| `primaryUrl`           | Set Primary URL                               | The address chosen for email links; unset until the action runs                                                                                                                       |
+| `smtp`                 | Configure SMTP                                | Becomes the `SMTP_*` variables                                                                                                                                                        |
+| `recorderLinks`        | Link / Unlink OwnTracks Recorder User         | Recorder user → Dawarich account id and email                                                                                                                                         |
+| `immichConnections`    | Connect / Disconnect Immich, the Immich check | Dawarich account id and email → the key in use and the key awaiting approval (each its secret, the secret's SHA-256, and whether it may add locations), and why a request was dropped |
 
 Variables re-asserted on every start: the database, Valkey and secret variables; `APPLICATION_HOSTS` (see [Network Access and Interfaces](#network-access-and-interfaces)); `APPLICATION_PROTOCOL=http`; `TIME_ZONE=UTC`; `WEB_CONCURRENCY=1`; `BACKGROUND_PROCESSING_CONCURRENCY=3`; `PROMETHEUS_EXPORTER_ENABLED=false`; the `SMTP_*` set; and `DOMAIN`, the host and port of the address email links use. That is `primaryUrl` followed to its hostname's current port; while it is unset or no longer one of the interface's addresses, a public domain if there is one, else the `.local` address. Only HTTPS addresses qualify, because Dawarich writes `https://` into every email link. Dawarich restarts when that address changes.
 
-**What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings; Connect Immich writes one account's Immich settings through the same code Dawarich's Integrations page uses.
+**What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings; once Immich approves a connection, the package writes that account's Immich settings through the same code Dawarich's Integrations page uses.
 
 **Changing the admin account in Dawarich is safe.** The package never re-applies its password on a start; only the Set Admin Password action changes it.
 
 ## Dependencies
 
-Two optional dependencies. OwnTracks Recorder is enabled only while at least one Recorder user is linked; StartOS then expects it running with its **MQTT Broker** (`mosquitto`) and **Recorder** (`recorder`) checks passing. Immich is enabled only while at least one account is connected; StartOS then expects it running. Either one shows a warning on Dawarich's page when it isn't, and never stops Dawarich from starting.
+Two optional dependencies. OwnTracks Recorder is enabled only while at least one Recorder user is linked; StartOS then expects it running with its **MQTT Broker** (`mosquitto`) and **Recorder** (`recorder`) checks passing. Immich is enabled only while at least one account is connected or waiting for approval; StartOS then expects it running. Either one shows a warning on Dawarich's page when it isn't, and never stops Dawarich from starting.
 
-| Dependency         | Required                                           | Mount                                                                                         | Why                                                                                                            |
-| ------------------ | -------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| OwnTracks Recorder | No; expected running while a user is linked        | its `main` volume, subpath `recorder/rec`, at `/recorder`, read-only, in `recorder-sync` only | The per-user, per-device, per-month `.rec` files the Recorder stores                                           |
-| Immich `>=3.3.1:2` | No; expected running while an account is connected | none                                                                                          | Its hidden `list-users`, `create-api-key` and `delete-api-key` actions, and its web port on the StartOS bridge |
+| Dependency         | Required                                                      | Mount                                                                                         | Why                                                                                             |
+| ------------------ | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| OwnTracks Recorder | No; expected running while a user is linked                   | its `main` volume, subpath `recorder/rec`, at `/recorder`, read-only, in `recorder-sync` only | The per-user, per-device, per-month `.rec` files the Recorder stores                            |
+| Immich `>=3.3.3:1` | No; expected running while an account is connected or waiting | none                                                                                          | Its hidden `request-access` and `revoke-access` actions, and its web port on the StartOS bridge |
 
 Only the `rec/` tree is mounted. The Recorder's `store.json`, which holds every MQTT password, is outside it.
 
@@ -113,7 +113,7 @@ Only the `rec/` tree is mounted. The Recorder's `store.json`, which holds every 
 
 Nothing is sent to the Recorder, and the phones keep talking MQTT to it.
 
-**How the Immich connection works.** Immich's actions answer only a package that declares Immich as a dependency, so Connect Immich declares it for the call; once an account is connected, `immichConnections` keeps it declared. Connect lists Immich's accounts and takes the one whose email matches the Dawarich account's, ignoring case, then has Immich create an API key named `Dawarich` in it with `asset.read` and `asset.view`, plus `asset.update` when **Add locations to photos** is on. `assets/immich.rb` then runs under `rails runner`: Dawarich's own Immich connection test, and on success the settings update behind Dawarich's Integrations page, which records the connection status and clears the account's photo cache. The address it saves is Immich's web port on the StartOS bridge (`http://10.0.3.1:<port>`), plain HTTP with no certificate to trust; the port survives Immich updates. A failed connect deletes the key it created and leaves the account's previous settings in place; a successful one deletes the key it replaced. Disconnect deletes the key in Immich, then clears the account's Immich address and key in Dawarich.
+**How the Immich connection works.** Immich's dependent actions answer only a package that declares Immich as a dependency, so Connect Immich declares it for the call; while any account is in `immichConnections`, it stays declared. Connect generates a key, stores it as the account's pending key, and sends Immich only its SHA-256 through `request-access`, asking for `asset.read`, `asset.view` and `user.read`, plus `asset.update` when **Add locations to photos** is on. When Immich's form takes a label, the Dawarich account's email goes with it, cut to 64 characters. It first withdraws the account's earlier request if one is still waiting. Immich raises its own task, where the user approves the request with an Immich account or denies it; an approved key appears in that account's API keys as `StartOS: dawarich`. Dawarich learns the outcome by using the key: the **Immich** health check calls Immich's `GET /api/users/me` with it every 15 seconds. A `401` means not approved, and a waiting request looks the same as a denied one. A `200` names the approved account. When its email matches the Dawarich account's, ignoring case, `assets/immich.rb` runs under `rails runner`: Dawarich's own Immich connection test, and on success the settings update behind Dawarich's Integrations page, which records the connection status and clears the account's photo cache. The key then goes into use and the key it replaces is revoked. A key approved for another person's account, or one Dawarich's connection test rejects, is revoked at once and the check reports why. The address saved is Immich's web port on the StartOS bridge (`http://10.0.3.1:<port>`), plain HTTP with no certificate to trust; the port survives Immich updates. Disconnect revokes the account's keys through `revoke-access`, then clears the account's Immich address and key in Dawarich. Uninstalling Dawarich revokes all of its keys if Immich is running; otherwise Immich drops them when it next starts.
 
 ## Network Access and Interfaces
 
@@ -141,7 +141,7 @@ The first start takes about a minute on a small x86 server; later starts take un
 
 ## Actions
 
-Seven actions. The two Recorder actions sit in an **OwnTracks Recorder** group and stay hidden until OwnTracks Recorder is installed; Unlink also needs a linked user. The two Immich actions sit in an **Immich** group: Connect is hidden until Immich is installed and disabled while it is older than 3.3.1:2, and Disconnect needs a connected account.
+Seven actions. The two Recorder actions sit in an **OwnTracks Recorder** group and stay hidden until OwnTracks Recorder is installed; Unlink also needs a linked user. The two Immich actions sit in an **Immich** group: Connect is hidden until Immich is installed and disabled while it is older than 3.3.3:1, and Disconnect needs an account that is connected or waiting for approval.
 
 ### Set Admin Password
 
@@ -184,21 +184,21 @@ Seven actions. The two Recorder actions sit in an **OwnTracks Recorder** group a
 
 ### Connect Immich
 
-- **When:** to show a person's Immich photos on their Dawarich map, or to change whether Dawarich may add locations to them.
+- **When:** to show a person's Immich photos on their Dawarich map, to change whether Dawarich may add locations to them, or to ask again after a request was denied or approved with the wrong account.
 - **Input:** the Dawarich account (no default), and **Add locations to photos** (off by default), which lets Dawarich's Enrich feature write positions into that person's Immich photos that have none.
-- **What it changes:** creates an Immich API key named `Dawarich` in the Immich account with the same email, saves Immich's bridge address and that key as the Dawarich account's Immich settings, and records the pair in `immichConnections`.
-- **Refuses** a Dawarich account whose email no Immich account uses (naming that email), and refuses while Immich is stopped. Neither email is verified by either app: the match only means the same address was entered in both.
-- **Cost:** about ten seconds (a temporary Rails process), no restart.
-- **Repeat safety:** connecting the account again replaces its key and deletes the old one.
-- **Needs:** Dawarich and Immich running, Immich 3.3.1:2 or later.
-- **Outputs:** both accounts' emails and the access granted.
+- **What it changes:** generates a key, records it as the account's pending key in `immichConnections`, and asks Immich for access with it. Immich raises a task, which names the Dawarich account's email when the installed Immich takes a label. Once the user approves it with the Immich account that has the same email, the Immich health check puts the key into use within 15 seconds. A key already in use keeps working until then.
+- **Refuses** while Immich is stopped, and refuses **Add locations to photos** when the installed Immich doesn't offer `asset.update`. Neither email is verified by either app: the match only means the same address was entered in both.
+- **Cost:** a few seconds, no restart. Putting the key into use later takes about ten seconds more (a temporary Rails process).
+- **Repeat safety:** each run withdraws the account's waiting request and makes a new one. Immich deletes the key a newly approved one replaces.
+- **Needs:** Dawarich and Immich running, Immich 3.3.3:1 or later.
+- **Outputs:** the email of the Immich account to approve the request with.
 
 ### Disconnect Immich
 
-- **When:** to stop Dawarich reading a person's Immich photos.
-- **What it changes:** deletes the account's `Dawarich` key in Immich, clears the account's Immich address and key in Dawarich, and removes the pair from `immichConnections`.
-- **Refuses** while Immich is installed but stopped, so the key is never left behind. With Immich uninstalled, it only clears Dawarich's side.
-- **Repeat safety:** a key already deleted in Immich counts as deleted. Only shown while an account is connected.
+- **When:** to stop Dawarich reading a person's Immich photos, or to drop a request you denied in Immich.
+- **What it changes:** revokes the account's keys in Immich, in use or waiting, clears the account's Immich address and key in Dawarich, and removes the account from `immichConnections`.
+- **Refuses** while Immich is installed but stopped, so no key is left behind. With Immich uninstalled, it only clears Dawarich's side.
+- **Repeat safety:** revoking a key Immich no longer has succeeds. Only shown while an account is connected or waiting for approval.
 
 ## Tasks
 
@@ -212,13 +212,14 @@ A service that will not start and offers no Start button is waiting on the admin
 
 ## Health Checks
 
-Three checks are shown, plus one that appears only when something is wrong. The database and Valkey checks are hidden.
+Three checks are shown, plus Immich while Immich is installed and one that appears only when something is wrong. The database and Valkey checks are hidden.
 
-| Check                   | Probes                                                                                               | Grace |
-| ----------------------- | ---------------------------------------------------------------------------------------------------- | ----- |
-| Web Interface           | Port 3000 is listening — Puma binds only after the app has loaded                                    | 5 min |
-| Background Jobs         | Sidekiq's process registry in Valkey (database 1) is not empty                                       | 2 min |
-| OwnTracks Recorder Sync | The Recorder's run state, then `status.json` written by `recorder-sync`; only while a user is linked | 1 min |
+| Check                   | Probes                                                                                                                                   | Grace |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| Web Interface           | Port 3000 is listening — Puma binds only after the app has loaded                                                                        | 5 min |
+| Background Jobs         | Sidekiq's process registry in Valkey (database 1) is not empty                                                                           | 2 min |
+| OwnTracks Recorder Sync | The Recorder's run state, then `status.json` written by `recorder-sync`; only while a user is linked                                     | 1 min |
+| Immich                  | Each account's key against Immich's `GET /api/users/me` every 15 seconds, putting approved keys into use; only while Immich is installed | 10 s  |
 
 - **Web Interface failing past its grace period:** the log shows why — a migration error from `setup`, or Puma failing to boot. `setup` failing stops the chain before `web` starts.
 - **Background Jobs failing:** imports stay "created", stats and tracks are not generated, and emails are not sent. Look for Sidekiq's error in the log.
@@ -226,6 +227,9 @@ Three checks are shown, plus one that appears only when something is wrong. The 
 - **OwnTracks Recorder Sync, `loading`:** "Paused" while OwnTracks Recorder is stopped (start it; whatever it records after it starts is forwarded then), or "Importing" until Dawarich has finished the history imports.
 - **OwnTracks Recorder Sync, `failure`:** names the Recorder user and the problem. A deleted Dawarich account: unlink and link again. An import Dawarich could not process: its reason is shown and on the account's Imports page; restart Dawarich to upload it again. Anything else carries the script's error. A failing link does not stop the others.
 - **OwnTracks Recorder Sync — "not installed":** a link exists but the Recorder is not installed. Install it, or unlink the user.
+- **Immich, healthy:** lists the connected accounts. `disabled` means no account is connected or waiting.
+- **Immich, `loading`:** names each account whose request Immich has not approved. Immich answers a denied request the same way, so the message offers both ways out: approve it in Immich's tasks, or after a denial run Disconnect Immich to stop asking or Connect Immich to ask again. Also "Paused" while Immich is stopped, and "Waiting for Immich to answer" while it starts.
+- **Immich, `failure`:** names the account and the problem: the request was approved with another person's Immich account, Dawarich's connection test failed (its reason is shown), or Immich no longer accepts the key, because it or its account was deleted in Immich or another of Dawarich's requests was approved with the same Immich account. Run Connect Immich again for any of these. A deleted Dawarich account shows here too: run Disconnect Immich for it.
 
 Four log lines look like faults and are not:
 
@@ -240,7 +244,7 @@ The database is dumped, not copied: `sdk.Backups.withPgDump` runs `pg_dump` of t
 
 - **Included:** the whole location history and every Dawarich setting (database), uploaded import files, exports, posters and videos (`main`), sync progress, and `store.json` with its secrets and credentials.
 - **Excluded:** the `valkey` volume. A restored instance starts with an empty job queue and cache, and Dawarich's in-app **sign-up** switch (kept only in that cache) is back to off.
-- **After a restore:** nothing to redo. The admin password, the Recorder links and the Immich connections come back with `store.json`; the sync resumes from its saved offsets, and `DOMAIN` follows the chosen address to its new port. If Immich was restored from a backup older than a connection, run Connect Immich again for that account.
+- **After a restore:** nothing to redo. The admin password, the Recorder links and the Immich connections come back with `store.json`; the sync resumes from its saved offsets, and `DOMAIN` follows the chosen address to its new port. If Immich was restored from a backup older than a connection, the Immich check reports that account's key as no longer accepted; run Connect Immich again for it.
 
 ## Limitations and Differences
 
@@ -250,7 +254,7 @@ What the package leaves out or does differently from upstream's Docker setup.
 2. **The OwnTracks Recorder sync is one-way and polled,** so deleting tracks in the Recorder does not delete them in Dawarich.
 3. **Only locations are synced from the Recorder** — not waypoints, region transitions, cards or friends.
 4. **No OIDC sign-in, S3 storage, Prometheus metrics or watched-import folder** — none of them is configured by the package.
-5. **Connect Immich matches accounts by email only.** A person whose emails differ between the two apps can still connect on Dawarich's Integrations page, with a key they create in Immich and Immich's LAN IP address including its port: `.local` names don't resolve inside StartOS's containers.
+5. **Connect Immich accepts only the Immich account with the same email.** A person whose emails differ between the two apps can still connect on Dawarich's Integrations page, with a key they create in Immich and Immich's LAN IP address including its port: `.local` names don't resolve inside StartOS's containers.
 6. **No armv7 or riscv64 build.**
 
 ---
@@ -300,7 +304,7 @@ startos_managed_env_vars:
   - SMTP_SERVER # and the rest of SMTP_*, only when SMTP is configured
 dependencies:
   - owntracks-recorder # optional; enabled while a user is linked, then expected running
-  - immich # optional; enabled while an account is connected, then expected running
+  - immich # optional; enabled while an account is connected or waiting, then expected running
 interfaces:
   ui: { type: ui, port: 3000 }
 actions:
@@ -309,8 +313,8 @@ actions:
   - set-primary-url
   - link-recorder-user # hidden until OwnTracks Recorder is installed
   - unlink-recorder-user # hidden until a user is linked
-  - connect-immich # hidden until Immich is installed; disabled below Immich 3.3.1:2
-  - disconnect-immich # hidden until an account is connected
+  - connect-immich # hidden until Immich is installed; disabled below Immich 3.3.3:1
+  - disconnect-immich # hidden until an account is connected or waiting
 tasks:
   - { action: set-admin-password, severity: critical }
 health_checks:
@@ -318,4 +322,5 @@ health_checks:
   - sidekiq
   - recorder-sync # only while a user is linked
   - recorder-missing # only while a user is linked and the Recorder is not installed
+  - immich # only while Immich is installed
 ```

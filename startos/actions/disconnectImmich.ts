@@ -2,11 +2,12 @@ import { storeJson } from '../fileModels/store.json'
 import { i18n } from '../i18n'
 import { sdk } from '../sdk'
 import {
-  deleteImmichKey,
   IMMICH_ID,
   immichVersion,
   listDawarichAccounts,
+  revokeImmichAccess,
   saveImmichSettings,
+  updateImmichConnection,
   withImmichDependency,
 } from '../utils'
 
@@ -63,9 +64,10 @@ export const disconnectImmich = sdk.Action.withInput(
           ?.started
       )
         throw new Error(i18n('Start Immich first'))
-      await withImmichDependency(effects, () =>
-        deleteImmichKey(effects, connection.immichUserId, connection.keyId),
-      )
+      await withImmichDependency(effects, async () => {
+        for (const key of [connection.key, connection.pendingKey])
+          if (key) await revokeImmichAccess(effects, key.keyHash)
+      })
     }
     if (
       (await listDawarichAccounts(effects)).some(
@@ -73,14 +75,12 @@ export const disconnectImmich = sdk.Action.withInput(
       )
     )
       await saveImmichSettings(effects, connection.userId, '', '')
-    await storeJson.merge(effects, {
-      immichConnections: connections.filter((c) => c !== connection),
-    })
+    await updateImmichConnection(effects, connection.userId, () => null)
     return {
       version: '1',
       title: i18n('Immich Disconnected'),
       message: i18n(
-        'Dawarich no longer reads ${email}’s Immich photos, and the key it used is deleted from Immich.',
+        'Dawarich no longer reads ${email}’s Immich photos, and its access in Immich is revoked.',
         { email: connection.email },
       ),
       result: null,
