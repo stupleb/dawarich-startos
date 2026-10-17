@@ -335,7 +335,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
                 }
                 if (states.some(([, s]) => !s)) {
                   return {
-                    result: 'starting',
+                    result: 'loading',
                     message: i18n('Waiting for the first sync'),
                   }
                 }
