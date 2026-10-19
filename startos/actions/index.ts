@@ -2,7 +2,9 @@ import { sdk } from '../sdk'
 import { primaryUrl } from '../utils'
 import { configureSmtp } from './configureSmtp'
 import { connectImmich } from './connectImmich'
+import { connectPhoton } from './connectPhoton'
 import { disconnectImmich } from './disconnectImmich'
+import { disconnectPhoton } from './disconnectPhoton'
 import { linkRecorderUser } from './linkRecorderUser'
 import { setAdminPassword } from './setAdminPassword'
 import { unlinkRecorderUser } from './unlinkRecorderUser'
@@ -15,3 +17,5 @@ export const actions = sdk.Actions.of()
   .addAction(unlinkRecorderUser)
   .addAction(connectImmich)
   .addAction(disconnectImmich)
+  .addAction(connectPhoton)
+  .addAction(disconnectPhoton)

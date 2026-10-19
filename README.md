@@ -90,21 +90,23 @@ One model, `store.json` on the `startos` volume. Dawarich itself has no configur
 | `primaryUrl`           | Set Primary URL                               | The address chosen for email links; unset until the action runs                                                                                                                       |
 | `smtp`                 | Configure SMTP                                | Becomes the `SMTP_*` variables                                                                                                                                                        |
 | `recorderLinks`        | Link / Unlink OwnTracks Recorder User         | Recorder user → Dawarich account id and email                                                                                                                                         |
+| `photonHost`           | Connect / Disconnect Photon, `photon-host`    | The Photon host the package last wrote to Dawarich's instance settings; null while not connected                                                                                      |
 | `immichConnections`    | Connect / Disconnect Immich, the Immich check | Dawarich account id and email → the key in use and the key awaiting approval (each its secret, the secret's SHA-256, and whether it may add locations), and why a request was dropped |
 
 Variables re-asserted on every start: the database, Valkey and secret variables; `APPLICATION_HOSTS` (see [Network Access and Interfaces](#network-access-and-interfaces)); `APPLICATION_PROTOCOL=http`; `TIME_ZONE=UTC`; `WEB_CONCURRENCY=1`; `BACKGROUND_PROCESSING_CONCURRENCY=3`; `PROMETHEUS_EXPORTER_ENABLED=false`; the `SMTP_*` set; and `DOMAIN`, the host and port of the address email links use. That is `primaryUrl` followed to its hostname's current port; while it is unset or no longer one of the interface's addresses, a public domain if there is one, else the `.local` address. Only HTTPS addresses qualify, because Dawarich writes `https://` into every email link. Dawarich restarts when that address changes.
 
-**What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings; once Immich approves a connection, the package writes that account's Immich settings through the same code Dawarich's Integrations page uses.
+**What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings; once Immich approves a connection, the package writes that account's Immich settings through the same code Dawarich's Integrations page uses, and Connect Photon writes the Photon settings through the code behind **Settings → Instance**.
 
 **Changing the admin account in Dawarich is safe.** The package never re-applies its password on a start; only the Set Admin Password action changes it.
 
 ## Dependencies
 
-Two optional dependencies. OwnTracks Recorder is enabled only while at least one Recorder user is linked; StartOS then expects it running with its **MQTT Broker** (`mosquitto`) and **Recorder** (`recorder`) checks passing. Immich is enabled only while at least one account is connected or waiting for approval; StartOS then expects it running. Either one shows a warning on Dawarich's page when it isn't, and never stops Dawarich from starting.
+Three optional dependencies. OwnTracks Recorder is enabled only while at least one Recorder user is linked; StartOS then expects it running with its **MQTT Broker** (`mosquitto`) and **Recorder** (`recorder`) checks passing. Immich is enabled only while at least one account is connected or waiting for approval; StartOS then expects it running. Photon is enabled only while connected; StartOS then expects it running with its **Photon** (`photon`) check passing. Its `data` check is left out, because it reports loading during routine rebuilds while the API keeps answering. Each one shows a warning on Dawarich's page when it isn't, and never stops Dawarich from starting.
 
 | Dependency         | Required                                                      | Mount                                                                                         | Why                                                                                             |
 | ------------------ | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | OwnTracks Recorder | No; expected running while a user is linked                   | its `main` volume, subpath `recorder/rec`, at `/recorder`, read-only, in `recorder-sync` only | The per-user, per-device, per-month `.rec` files the Recorder stores                            |
+| Photon `>=1.3.0:0` | No; expected running while connected                          | none                                                                                          | Its API port on the StartOS bridge                                                              |
 | Immich `>=3.3.3:1` | No; expected running while an account is connected or waiting | none                                                                                          | Its hidden `request-access` and `revoke-access` actions, and its web port on the StartOS bridge |
 
 Only the `rec/` tree is mounted. The Recorder's `store.json`, which holds every MQTT password, is outside it.
@@ -112,6 +114,10 @@ Only the `rec/` tree is mounted. The Recorder's `store.json`, which holds every 
 **How the sync works.** For each link, `recorder-sync` first uploads each of the user's `.rec` files through Dawarich's imports API (`POST /api/v1/imports`) with the linked account's API key, and counts a file done only once Dawarich reports that import completed (`GET /api/v1/imports/<id>`). An import Dawarich marks failed is reported by the sync check and uploaded again at the next start. After that, it polls the files every 15 seconds and sends each new location to Dawarich's OwnTracks endpoint (`POST /api/v1/owntracks/points`), which stores it before answering. Byte offsets per file are saved in `state.json`, so a restart resumes where it stopped; a new month's or new device's file is followed from its start. Only the Recorder's plain location records are sent — the same subset Dawarich's own `.rec` importer takes. Each record gets its `topic` added before it is sent, because the Recorder does not store one for MQTT publishes and Dawarich converts OwnTracks speed from km/h to m/s only when it is present. The API key is read from Dawarich's database at start and re-read on a `401`, so regenerating it in Dawarich does not break the sync. Dawarich ignores a point it already has, so overlapping imports and resends are harmless.
 
 Nothing is sent to the Recorder, and the phones keep talking MQTT to it.
+
+**How the Photon connection works.** Connect Photon reads Photon's API port on the StartOS bridge (`10.0.3.1:<port>`, plain HTTP) and runs `assets/photon.rb` under `rails runner`, which writes Dawarich's instance settings `photon_api_host` (that host) and `photon_api_use_https` (off) through the code behind **Settings → Instance**, so they show there and stay editable. Dawarich adds the `/reverse` path itself and sends no API key while that field is empty; Photon needs none. Dawarich's running processes pick up the change without a restart. `photonHost` records the host, which declares the dependency. While connected, `main` watches the bridge address, and the `photon-host` oneshot rewrites the setting if Photon's port changes. Disconnect clears `photon_api_host`, so Dawarich has no lookup provider. Both the rewrite and Disconnect leave the setting alone when it no longer holds the host the package wrote, because the admin changed it, and the package then stops managing it.
+
+Addresses come from Dawarich's own jobs. Points from the phone apps and the Recorder sync are geocoded by a job queued shortly after they arrive. Every point never geocoded is picked up by the nightly job at 01:15. A point outside Photon's countries is marked geocoded with no address and is not retried; **Settings → Background Jobs → Start reverse geocoding** redoes all of them. A point that arrives while Photon is unreachable stays ungeocoded and is retried by the nightly job. Dawarich's **Test connection** button looks up a fixed point in Leipzig and reports "no results" unless Photon serves Germany.
 
 **How the Immich connection works.** Immich's dependent actions answer only a package that declares Immich as a dependency, so Connect Immich declares it for the call; while any account is in `immichConnections`, it stays declared. Connect generates a key, stores it as the account's pending key, and sends Immich only its SHA-256 through `request-access`, asking for `asset.read`, `asset.view` and `user.read`, plus `asset.update` when **Add locations to photos** is on. When Immich's form takes a label, the Dawarich account's email goes with it, cut to 64 characters. It first withdraws the account's earlier request if one is still waiting. Immich raises its own task, where the user approves the request with an Immich account or denies it; an approved key appears in that account's API keys as `StartOS: dawarich`. Dawarich learns the outcome by using the key: the **Immich** health check calls Immich's `GET /api/users/me` with it every 15 seconds. A `401` means not approved, and a waiting request looks the same as a denied one. A `200` names the approved account. When its email matches the Dawarich account's, ignoring case, `assets/immich.rb` runs under `rails runner`: Dawarich's own Immich connection test, and on success the settings update behind Dawarich's Integrations page, which records the connection status and clears the account's photo cache. The key then goes into use and the key it replaces is revoked. A key approved for another person's account, or one Dawarich's connection test rejects, is revoked at once and the check reports why. The address saved is Immich's web port on the StartOS bridge (`http://10.0.3.1:<port>`), plain HTTP with no certificate to trust; the port survives Immich updates. Disconnect revokes the account's keys through `revoke-access`, then clears the account's Immich address and key in Dawarich. Uninstalling Dawarich revokes all of its keys if Immich is running; otherwise Immich drops them when it next starts.
 
@@ -141,7 +147,7 @@ The first start takes about a minute on a small x86 server; later starts take un
 
 ## Actions
 
-Seven actions. The two Recorder actions sit in an **OwnTracks Recorder** group and stay hidden until OwnTracks Recorder is installed; Unlink also needs a linked user. The two Immich actions sit in an **Immich** group: Connect is hidden until Immich is installed and disabled while it is older than 3.3.3:1, and Disconnect needs an account that is connected or waiting for approval.
+Nine actions. The two Recorder actions sit in an **OwnTracks Recorder** group and stay hidden until OwnTracks Recorder is installed; Unlink also needs a linked user. The two Immich actions sit in an **Immich** group: Connect is hidden until Immich is installed and disabled while it is older than 3.3.3:1, and Disconnect needs an account that is connected or waiting for approval. The two Photon actions sit in a **Photon** group: Connect is hidden until Photon is installed, and Disconnect needs a connection.
 
 ### Set Admin Password
 
@@ -199,6 +205,21 @@ Seven actions. The two Recorder actions sit in an **OwnTracks Recorder** group a
 - **What it changes:** revokes the account's keys in Immich, in use or waiting, clears the account's Immich address and key in Dawarich, and removes the account from `immichConnections`.
 - **Refuses** while Immich is installed but stopped, so no key is left behind. With Immich uninstalled, it only clears Dawarich's side.
 - **Repeat safety:** revoking a key Immich no longer has succeeds. Only shown while an account is connected or waiting for approval.
+
+### Connect Photon
+
+- **When:** to have Dawarich look up addresses with the Photon service on this server, or to take the setting back after changing it by hand.
+- **What it changes:** writes Photon's bridge address and HTTPS off to Dawarich's Photon instance settings, replacing whatever lookup provider was set there, and records it in `photonHost`, which enables the dependency.
+- **Refuses** when Photon has no bridge address.
+- **Cost:** about ten seconds (a temporary Rails process), no restart.
+- **Repeat safety:** each run writes the current address again.
+- **Needs:** Dawarich running and Photon installed.
+
+### Disconnect Photon
+
+- **When:** to stop using Photon for address lookups.
+- **What it changes:** clears Dawarich's Photon host, unless the admin has changed it since the package wrote it, and clears `photonHost`, which disables the dependency. Addresses already found stay.
+- **Repeat safety:** only shown while connected.
 
 ## Tasks
 
@@ -305,6 +326,7 @@ startos_managed_env_vars:
 dependencies:
   - owntracks-recorder # optional; enabled while a user is linked, then expected running
   - immich # optional; enabled while an account is connected or waiting, then expected running
+  - photon # optional; enabled while connected, then expected running with its photon check
 interfaces:
   ui: { type: ui, port: 3000 }
 actions:
@@ -315,6 +337,8 @@ actions:
   - unlink-recorder-user # hidden until a user is linked
   - connect-immich # hidden until Immich is installed; disabled below Immich 3.3.3:1
   - disconnect-immich # hidden until an account is connected or waiting
+  - connect-photon # hidden until Photon is installed
+  - disconnect-photon # hidden until connected
 tasks:
   - { action: set-admin-password, severity: critical }
 health_checks:

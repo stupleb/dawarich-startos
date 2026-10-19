@@ -38,6 +38,8 @@ const shape = z.looseObject({
   smtp: smtpShape,
   recorderLinks: z.array(recorderLink).catch([]),
   immichConnections: z.array(immichConnection).catch([]),
+  // The Photon host the package last wrote; null while not connected.
+  photonHost: z.string().nullable().catch(null),
 })
 
 export type RecorderLink = z.infer<typeof recorderLink>

@@ -1,6 +1,10 @@
 import { storeJson } from './fileModels/store.json'
-import { immichDescription, recorderDescription } from './manifest/i18n'
-import { IMMICH_ID, immichVersionRange, RECORDER_ID } from './utils'
+import {
+  immichDescription,
+  photonDescription,
+  recorderDescription,
+} from './manifest/i18n'
+import { IMMICH_ID, immichVersionRange, PHOTON_ID, RECORDER_ID } from './utils'
 import { sdk } from './sdk'
 
 export const dependencies = sdk.Dependencies.of()
@@ -34,5 +38,19 @@ export const dependencies = sdk.Dependencies.of()
         !!(await storeJson
           .read((s) => s.immichConnections.length > 0)
           .const(effects)),
+    }),
+  )
+  .addDependency(
+    sdk.Dependency.optional(PHOTON_ID, {
+      description: photonDescription,
+      metadata: {
+        title: 'Photon',
+        icon: 'https://raw.githubusercontent.com/stupleb/photon-startos/279cadf622b1ce8b8d63c0bc82ed7b0f6e784755/icon.png',
+      },
+      versionRange: '>=1.3.0:0',
+      kind: 'running',
+      healthChecks: ['photon'],
+      enabled: async ({ effects }) =>
+        !!(await storeJson.read((s) => s.photonHost).const(effects)),
     }),
   )

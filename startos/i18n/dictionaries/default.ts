@@ -105,6 +105,21 @@ const dict = {
   'That account is not connected to Immich': 80,
   'Immich Disconnected': 81,
   'Dawarich no longer reads ${email}’s Immich photos, and its access in Immich is revoked.': 82,
+
+  // Photon (utils.ts, actions/connectPhoton.ts, actions/disconnectPhoton.ts)
+  'Dawarich could not save the address lookup settings. The service log has the details.': 97,
+  'Connect Photon': 98,
+  'Look up the addresses of locations with Photon. Replaces the address lookup set under Settings → Instance.': 99,
+  Photon: 100,
+  'Photon has no address Dawarich can reach': 101,
+  'Photon Connected': 102,
+  'Dawarich looks up addresses with Photon. Photon knows only the countries chosen in it, so locations elsewhere get no address.': 103,
+  'Disconnect Photon': 104,
+  'Stop looking up addresses with Photon. Addresses Dawarich already found stay.': 105,
+  'Dawarich is not connected to Photon': 106,
+  'Photon Disconnected': 107,
+  'Dawarich no longer looks up addresses with Photon.': 108,
+  'The address lookup under Settings → Instance was changed there, so it stays as it is.': 109,
 } as const
 
 /**

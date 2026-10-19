@@ -10,6 +10,7 @@
 - **One address for everything:** the **Web UI** interface is both the website you open and the address your phone apps send locations to.
 - **Optional OwnTracks Recorder sync:** if you already run OwnTracks Recorder on this server, Dawarich can import each person's history from it and keep adding their new locations.
 - **Optional Immich photos:** if you run Immich on this server, Dawarich can show each person's photos on their map.
+- **Optional address lookups with Photon:** if you run Photon on this server, Dawarich can name the places in your history without asking an outside service.
 - **Optional email** for password resets, family invitations and monthly digests.
 
 Your location history, uploaded files and settings are part of your StartOS backups.
@@ -76,6 +77,21 @@ Photos without a location stay off the map. With **Add locations to photos** on,
 
 If you'd rather not give both accounts the same email, the person can connect under **Settings → Integrations** in Dawarich instead, with an API key they create in Immich and Immich's address. Use the LAN IP address shown on Immich's **Web UI** interface, port included, such as `https://192.168.1.20:12345`: Dawarich can't reach `.local` addresses from inside StartOS.
 
+## Looking up addresses with Photon
+
+This part is optional, and its actions only appear once Photon is installed.
+
+Dawarich turns locations into addresses (city, street, country) with a geocoding service. Photon keeps that lookup on your own server.
+
+1. In Photon, choose the countries your history covers, and wait until it has finished building its data.
+2. With Dawarich and Photon running, run **Connect Photon**.
+
+Dawarich fills in addresses about a minute after each new location arrives, and existing locations without one overnight. Photon only knows the countries you chose in it: a location anywhere else gets no address. To redo every address, for example after adding a country to Photon, open **Settings → Background Jobs** in Dawarich and start **reverse geocoding**.
+
+Connect Photon fills in the **Photon** section under **Settings → Instance** in Dawarich. The **API key** field stays empty, because Photon on StartOS needs none. That section's **Test connection** button always looks up the same point in Leipzig, Germany, so it reports "no results" unless your Photon includes Germany; that still means Dawarich reached Photon.
+
+**Disconnect Photon** stops Dawarich using Photon. Addresses already found stay. If you changed the Photon host under **Settings → Instance** yourself, Disconnect leaves your setting alone.
+
 ## Moving your data
 
 - **Out of Dawarich, or into another Dawarich:** each person's **Account** page has **Export my data**, which builds an archive of everything in their account, and **Import my data**, which restores such an archive.
@@ -95,6 +111,7 @@ Without email, you can still invite family members: Dawarich shows a link to cop
 - **Configure SMTP** and **Set Primary URL:** see **Email** above.
 - **Link OwnTracks Recorder User** and **Unlink OwnTracks Recorder User:** see **Using Dawarich with OwnTracks Recorder** above.
 - **Connect Immich** and **Disconnect Immich:** see **Showing Immich photos** above.
+- **Connect Photon** and **Disconnect Photon:** see **Looking up addresses with Photon** above.
 
 ## Limitations
 
