@@ -79,41 +79,45 @@ The location history itself — points, tracks, visits, places, trips, stats —
 
 One model, `store.json` on the `startos` volume. Dawarich itself has no configuration file: the package configures it entirely through environment variables, set on every start from `store.json` and the service's addresses.
 
-| Key                    | Set by                                        | Notes                                                                                                                                                                                 |
-| ---------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `postgresPassword`     | Install                                       | Internal                                                                                                                                                                              |
-| `secretKeyBase`        | Install                                       | Rails' `SECRET_KEY_BASE`; also the key for archived raw data. Never changes.                                                                                                          |
-| `otp*` (three keys)    | Install                                       | Encryption keys that make two-factor sign-in available. Never change.                                                                                                                 |
-| `adminEmail`           | Set Admin Password                            | The admin's sign-in email as the package last set it                                                                                                                                  |
-| `adminPassword`        | Set Admin Password                            | The last password the package issued                                                                                                                                                  |
-| `adminPasswordPending` | Set Admin Password, `setup`                   | `true` while an issued password has not reached the database                                                                                                                          |
-| `primaryUrl`           | Set Primary URL                               | The address chosen for email links; unset until the action runs                                                                                                                       |
-| `smtp`                 | Configure SMTP                                | Becomes the `SMTP_*` variables                                                                                                                                                        |
-| `recorderLinks`        | Link / Unlink OwnTracks Recorder User         | Recorder user → Dawarich account id and email                                                                                                                                         |
-| `photonHost`           | Connect / Disconnect Photon, `photon-host`    | The Photon host the package last wrote to Dawarich's instance settings; null while not connected                                                                                      |
-| `immichConnections`    | Connect / Disconnect Immich, the Immich check | Dawarich account id and email → the key in use and the key awaiting approval (each its secret, the secret's SHA-256, and whether it may add locations), and why a request was dropped |
+| Key                    | Set by                                                      | Notes                                                                                                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgresPassword`     | Install                                                     | Internal                                                                                                                                                                                                                               |
+| `secretKeyBase`        | Install                                                     | Rails' `SECRET_KEY_BASE`; also the key for archived raw data. Never changes.                                                                                                                                                           |
+| `otp*` (three keys)    | Install                                                     | Encryption keys that make two-factor sign-in available. Never change.                                                                                                                                                                  |
+| `adminEmail`           | Set Admin Password                                          | The admin's sign-in email as the package last set it                                                                                                                                                                                   |
+| `adminPassword`        | Set Admin Password                                          | The last password the package issued                                                                                                                                                                                                   |
+| `adminPasswordPending` | Set Admin Password, `setup`                                 | `true` while an issued password has not reached the database                                                                                                                                                                           |
+| `primaryUrl`           | Set Primary URL                                             | The address chosen for email links; unset until the action runs                                                                                                                                                                        |
+| `smtp`                 | Configure SMTP                                              | Becomes the `SMTP_*` variables                                                                                                                                                                                                         |
+| `recorderLinks`        | Link / Unlink OwnTracks Recorder User                       | Recorder user → Dawarich account id and email                                                                                                                                                                                          |
+| `airtrailConnections`  | Connect / Confirm / Disconnect AirTrail, the AirTrail check | Dawarich account id and email → the AirTrail username expected, the approved account's id, the key in use and the key awaiting approval (secret and SHA-256), an approved account held for confirmation, and why a request was dropped |
+| `photonHost`           | Connect / Disconnect Photon, `photon-host`                  | The Photon host the package last wrote to Dawarich's instance settings; null while not connected                                                                                                                                       |
+| `immichConnections`    | Connect / Disconnect Immich, the Immich check               | Dawarich account id and email → the key in use and the key awaiting approval (each its secret, the secret's SHA-256, and whether it may add locations), and why a request was dropped                                                  |
 
 Variables re-asserted on every start: the database, Valkey and secret variables; `APPLICATION_HOSTS` (see [Network Access and Interfaces](#network-access-and-interfaces)); `APPLICATION_PROTOCOL=http`; `TIME_ZONE=UTC`; `WEB_CONCURRENCY=1`; `BACKGROUND_PROCESSING_CONCURRENCY=3`; `PROMETHEUS_EXPORTER_ENABLED=false`; the `SMTP_*` set; and `DOMAIN`, the host and port of the address email links use. That is `primaryUrl` followed to its hostname's current port; while it is unset or no longer one of the interface's addresses, a public domain if there is one, else the `.local` address. Only HTTPS addresses qualify, because Dawarich writes `https://` into every email link. Dawarich restarts when that address changes.
 
-**What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings; once Immich approves a connection, the package writes that account's Immich settings through the same code Dawarich's Integrations page uses, and Connect Photon writes the Photon settings through the code behind **Settings → Instance**.
+**What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings; once Immich approves a connection, the package writes that account's Immich settings through the same code Dawarich's Integrations page uses, the same goes for AirTrail once its connection is approved, and Connect Photon writes the Photon settings through the code behind **Settings → Instance**.
 
 **Changing the admin account in Dawarich is safe.** The package never re-applies its password on a start; only the Set Admin Password action changes it.
 
 ## Dependencies
 
-Three optional dependencies. OwnTracks Recorder is enabled only while at least one Recorder user is linked; StartOS then expects it running with its **MQTT Broker** (`mosquitto`) and **Recorder** (`recorder`) checks passing. Immich is enabled only while at least one account is connected or waiting for approval; StartOS then expects it running. Photon is enabled only while connected; StartOS then expects it running with its **Photon** (`photon`) check passing. Its `data` check is left out, because it reports loading during routine rebuilds while the API keeps answering. Each one shows a warning on Dawarich's page when it isn't, and never stops Dawarich from starting.
+Four optional dependencies. OwnTracks Recorder is enabled only while at least one Recorder user is linked; StartOS then expects it running with its **MQTT Broker** (`mosquitto`) and **Recorder** (`recorder`) checks passing. Immich is enabled only while at least one account is connected or waiting for approval; StartOS then expects it running. AirTrail is enabled only while at least one account is connected, waiting or held; StartOS then expects it running with its **AirTrail** (`airtrail`) check passing. Photon is enabled only while connected; StartOS then expects it running with its **Photon** (`photon`) check passing. Its `data` check is left out, because it reports loading during routine rebuilds while the API keeps answering. Each one shows a warning on Dawarich's page when it isn't, and never stops Dawarich from starting.
 
-| Dependency         | Required                                                      | Mount                                                                                         | Why                                                                                             |
-| ------------------ | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| OwnTracks Recorder | No; expected running while a user is linked                   | its `main` volume, subpath `recorder/rec`, at `/recorder`, read-only, in `recorder-sync` only | The per-user, per-device, per-month `.rec` files the Recorder stores                            |
-| Photon `>=1.3.0:0` | No; expected running while connected                          | none                                                                                          | Its API port on the StartOS bridge                                                              |
-| Immich `>=3.3.3:1` | No; expected running while an account is connected or waiting | none                                                                                          | Its hidden `request-access` and `revoke-access` actions, and its web port on the StartOS bridge |
+| Dependency            | Required                                                      | Mount                                                                                         | Why                                                                                             |
+| --------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| OwnTracks Recorder    | No; expected running while a user is linked                   | its `main` volume, subpath `recorder/rec`, at `/recorder`, read-only, in `recorder-sync` only | The per-user, per-device, per-month `.rec` files the Recorder stores                            |
+| AirTrail `>=3.13.0:0` | No; expected running while an account is connected            | none                                                                                          | Its hidden `request-access` and `revoke-access` actions, and its web port on the StartOS bridge |
+| Photon `>=1.3.0:0`    | No; expected running while connected                          | none                                                                                          | Its API port on the StartOS bridge                                                              |
+| Immich `>=3.3.3:1`    | No; expected running while an account is connected or waiting | none                                                                                          | Its hidden `request-access` and `revoke-access` actions, and its web port on the StartOS bridge |
 
 Only the `rec/` tree is mounted. The Recorder's `store.json`, which holds every MQTT password, is outside it.
 
 **How the sync works.** For each link, `recorder-sync` first uploads each of the user's `.rec` files through Dawarich's imports API (`POST /api/v1/imports`) with the linked account's API key, and counts a file done only once Dawarich reports that import completed (`GET /api/v1/imports/<id>`). An import Dawarich marks failed is reported by the sync check and uploaded again at the next start. After that, it polls the files every 15 seconds and sends each new location to Dawarich's OwnTracks endpoint (`POST /api/v1/owntracks/points`), which stores it before answering. Byte offsets per file are saved in `state.json`, so a restart resumes where it stopped; a new month's or new device's file is followed from its start. Only the Recorder's plain location records are sent — the same subset Dawarich's own `.rec` importer takes. Each record gets its `topic` added before it is sent, because the Recorder does not store one for MQTT publishes and Dawarich converts OwnTracks speed from km/h to m/s only when it is present. The API key is read from Dawarich's database at start and re-read on a `401`, so regenerating it in Dawarich does not break the sync. Dawarich ignores a point it already has, so overlapping imports and resends are harmless.
 
 Nothing is sent to the Recorder, and the phones keep talking MQTT to it.
+
+**How the AirTrail connection works.** It follows the Immich connection: Connect AirTrail declares the dependency for the call, generates a key, stores it as the account's pending key, withdraws the account's earlier waiting request, and sends AirTrail only the key's SHA-256 through `request-access`, asking for `flight.read.own` and `profile.read`, labelled "<Dawarich email> → <expected username>". AirTrail raises its own task, where the user approves the request with an AirTrail account or denies it; an approved key appears under that account's AirTrail security settings as `StartOS: dawarich`. The **AirTrail** health check calls AirTrail's `GET /api/v1/me` with the key every 15 seconds: `401` means not approved, and a `200` names the account. AirTrail accounts have no email and their usernames can change, so the person's AirTrail username is entered at Connect. When the approved account has that username, ignoring case, `assets/airtrail.rb` runs under `rails runner`: Dawarich's own AirTrail connection test, the settings update behind Dawarich's Integrations page, and a first flight import. The key goes into use, the key it replaces is revoked, and the account's AirTrail `id` is recorded, so renaming it later changes nothing. When the approved account has another username, nothing is saved or imported: the account is held, Dawarich raises an important task, and **Confirm AirTrail Account** either adopts the key or revokes it. The address saved is AirTrail's web port on the StartOS bridge (`http://10.0.3.1:<port>`), plain HTTP; Dawarich only sends GET requests with the key there, which AirTrail's HTTPS-only sign-in check does not cover. Dawarich imports only flights where the chosen account is a passenger (`scope=mine`), daily at 02:00 and on **Sync AirTrail flights**. Disconnect revokes the account's keys and clears its AirTrail settings; uninstalling Dawarich revokes all of its keys if AirTrail is running.
 
 **How the Photon connection works.** Connect Photon reads Photon's API port on the StartOS bridge (`10.0.3.1:<port>`, plain HTTP) and runs `assets/photon.rb` under `rails runner`, which writes Dawarich's instance settings `photon_api_host` (that host) and `photon_api_use_https` (off) through the code behind **Settings → Instance**, so they show there and stay editable. Dawarich adds the `/reverse` path itself and sends no API key while that field is empty; Photon needs none. Dawarich's running processes pick up the change without a restart. `photonHost` records the host, which declares the dependency. While connected, `main` watches the bridge address, and the `photon-host` oneshot rewrites the setting if Photon's port changes. Disconnect clears `photon_api_host`, so Dawarich has no lookup provider. Both the rewrite and Disconnect leave the setting alone when it no longer holds the host the package wrote, because the admin changed it, and the package then stops managing it.
 
@@ -147,7 +151,7 @@ The first start takes about a minute on a small x86 server; later starts take un
 
 ## Actions
 
-Nine actions. The two Recorder actions sit in an **OwnTracks Recorder** group and stay hidden until OwnTracks Recorder is installed; Unlink also needs a linked user. The two Immich actions sit in an **Immich** group: Connect is hidden until Immich is installed and disabled while it is older than 3.3.3:1, and Disconnect needs an account that is connected or waiting for approval. The two Photon actions sit in a **Photon** group: Connect is hidden until Photon is installed, and Disconnect needs a connection.
+Twelve actions. The two Recorder actions sit in an **OwnTracks Recorder** group and stay hidden until OwnTracks Recorder is installed; Unlink also needs a linked user. The two Immich actions sit in an **Immich** group: Connect is hidden until Immich is installed and disabled while it is older than 3.3.3:1, and Disconnect needs an account that is connected or waiting for approval. The three AirTrail actions sit in an **AirTrail** group: Connect is hidden until AirTrail is installed, Confirm appears only while an approved account is held, and Disconnect needs an account that is connected, waiting or held. The two Photon actions sit in a **Photon** group: Connect is hidden until Photon is installed, and Disconnect needs a connection.
 
 ### Set Admin Password
 
@@ -206,6 +210,29 @@ Nine actions. The two Recorder actions sit in an **OwnTracks Recorder** group an
 - **Refuses** while Immich is installed but stopped, so no key is left behind. With Immich uninstalled, it only clears Dawarich's side.
 - **Repeat safety:** revoking a key Immich no longer has succeeds. Only shown while an account is connected or waiting for approval.
 
+### Connect AirTrail
+
+- **When:** to import a person's AirTrail flights into their Dawarich account, or to ask again after a request was denied.
+- **Input:** the Dawarich account (no default) and the person's current AirTrail username.
+- **What it changes:** generates a key, records it as the account's pending key in `airtrailConnections` with the username, and asks AirTrail for access with it. Once the user approves it in AirTrail's task, the AirTrail health check puts the key into use within 15 seconds if the approved account has that username, or holds it for Confirm AirTrail Account if not.
+- **Refuses** while AirTrail is stopped.
+- **Cost:** a few seconds, no restart. Putting the key into use later takes about ten seconds more (a temporary Rails process).
+- **Repeat safety:** each run withdraws the account's waiting or held request and makes a new one. AirTrail deletes the key a newly approved one replaces.
+- **Outputs:** the AirTrail account to approve the request with.
+
+### Confirm AirTrail Account
+
+- **When:** its task asks, because AirTrail approved an account other than the username Connect AirTrail was given.
+- **Input:** the Dawarich account, listed with the approved AirTrail username and display name, and **Use this AirTrail account** or **Refuse it and revoke the key**.
+- **What it changes:** Use puts the key into use for that account and starts the import; Refuse revokes the key in AirTrail. Either way the task clears. Nothing is imported until one is chosen.
+- **Refuses** while AirTrail is stopped, and when AirTrail no longer accepts the held key.
+
+### Disconnect AirTrail
+
+- **When:** to stop importing a person's AirTrail flights, or to drop a request you denied in AirTrail.
+- **What it changes:** revokes the account's keys in AirTrail, in use, waiting or held, clears the account's AirTrail address and key in Dawarich, and removes the account from `airtrailConnections`. Flights already imported stay.
+- **Refuses** while AirTrail is installed but stopped. With AirTrail uninstalled, it only clears Dawarich's side.
+
 ### Connect Photon
 
 - **When:** to have Dawarich look up addresses with the Photon service on this server, or to take the setting back after changing it by hand.
@@ -233,14 +260,15 @@ A service that will not start and offers no Start button is waiting on the admin
 
 ## Health Checks
 
-Three checks are shown, plus Immich while Immich is installed and one that appears only when something is wrong. The database and Valkey checks are hidden.
+Three checks are shown, plus Immich and AirTrail while each is installed and one that appears only when something is wrong. The database and Valkey checks are hidden.
 
-| Check                   | Probes                                                                                                                                   | Grace |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| Web Interface           | Port 3000 is listening — Puma binds only after the app has loaded                                                                        | 5 min |
-| Background Jobs         | Sidekiq's process registry in Valkey (database 1) is not empty                                                                           | 2 min |
-| OwnTracks Recorder Sync | The Recorder's run state, then `status.json` written by `recorder-sync`; only while a user is linked                                     | 1 min |
-| Immich                  | Each account's key against Immich's `GET /api/users/me` every 15 seconds, putting approved keys into use; only while Immich is installed | 10 s  |
+| Check                   | Probes                                                                                                                                                                     | Grace |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| Web Interface           | Port 3000 is listening — Puma binds only after the app has loaded                                                                                                          | 5 min |
+| Background Jobs         | Sidekiq's process registry in Valkey (database 1) is not empty                                                                                                             | 2 min |
+| OwnTracks Recorder Sync | The Recorder's run state, then `status.json` written by `recorder-sync`; only while a user is linked                                                                       | 1 min |
+| Immich                  | Each account's key against Immich's `GET /api/users/me` every 15 seconds, putting approved keys into use; only while Immich is installed                                   | 10 s  |
+| AirTrail                | Each account's key against AirTrail's `GET /api/v1/me` every 15 seconds, putting approved keys into use or holding them for confirmation; only while AirTrail is installed | 10 s  |
 
 - **Web Interface failing past its grace period:** the log shows why — a migration error from `setup`, or Puma failing to boot. `setup` failing stops the chain before `web` starts.
 - **Background Jobs failing:** imports stay "created", stats and tracks are not generated, and emails are not sent. Look for Sidekiq's error in the log.
@@ -251,6 +279,9 @@ Three checks are shown, plus Immich while Immich is installed and one that appea
 - **Immich, healthy:** lists the connected accounts. `disabled` means no account is connected or waiting.
 - **Immich, `loading`:** names each account whose request Immich has not approved. Immich answers a denied request the same way, so the message offers both ways out: approve it in Immich's tasks, or after a denial run Disconnect Immich to stop asking or Connect Immich to ask again. Also "Paused" while Immich is stopped, and "Waiting for Immich to answer" while it starts.
 - **Immich, `failure`:** names the account and the problem: the request was approved with another person's Immich account, Dawarich's connection test failed (its reason is shown), or Immich no longer accepts the key, because it or its account was deleted in Immich or another of Dawarich's requests was approved with the same Immich account. Run Connect Immich again for any of these. A deleted Dawarich account shows here too: run Disconnect Immich for it.
+- **AirTrail, healthy:** lists each connected Dawarich email with the AirTrail username it imports from, as AirTrail reports it now. `disabled` means no account is connected or waiting.
+- **AirTrail, `loading`:** names each request AirTrail has not approved (a denied request looks the same: Disconnect AirTrail to stop asking, or Connect AirTrail to ask again), and each approved account held for Confirm AirTrail Account. Also "Paused" while AirTrail is stopped.
+- **AirTrail, `failure`:** a deleted Dawarich account, Dawarich's connection test failing, or AirTrail no longer accepting the key, because it or its account was deleted in AirTrail or another request was approved with the same account. Run Connect AirTrail again, or Disconnect AirTrail for a deleted account.
 
 Four log lines look like faults and are not:
 
@@ -326,6 +357,7 @@ startos_managed_env_vars:
 dependencies:
   - owntracks-recorder # optional; enabled while a user is linked, then expected running
   - immich # optional; enabled while an account is connected or waiting, then expected running
+  - airtrail # optional; enabled while an account is connected, waiting or held, then expected running with its airtrail check
   - photon # optional; enabled while connected, then expected running with its photon check
 interfaces:
   ui: { type: ui, port: 3000 }
@@ -337,6 +369,9 @@ actions:
   - unlink-recorder-user # hidden until a user is linked
   - connect-immich # hidden until Immich is installed; disabled below Immich 3.3.3:1
   - disconnect-immich # hidden until an account is connected or waiting
+  - connect-airtrail # hidden until AirTrail is installed
+  - confirm-airtrail-account # only while an approved account is held
+  - disconnect-airtrail # hidden until an account is connected, waiting or held
   - connect-photon # hidden until Photon is installed
   - disconnect-photon # hidden until connected
 tasks:
@@ -347,4 +382,5 @@ health_checks:
   - recorder-sync # only while a user is linked
   - recorder-missing # only while a user is linked and the Recorder is not installed
   - immich # only while Immich is installed
+  - airtrail # only while AirTrail is installed
 ```

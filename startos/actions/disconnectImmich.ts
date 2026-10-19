@@ -3,12 +3,13 @@ import { i18n } from '../i18n'
 import { sdk } from '../sdk'
 import {
   IMMICH_ID,
+  immichVersionRange,
   immichVersion,
   listDawarichAccounts,
   revokeImmichAccess,
-  saveImmichSettings,
+  saveConnectionSettings,
   updateImmichConnection,
-  withImmichDependency,
+  withDependency,
 } from '../utils'
 
 const { InputSpec, Value } = sdk
@@ -64,7 +65,7 @@ export const disconnectImmich = sdk.Action.withInput(
           ?.started
       )
         throw new Error(i18n('Start Immich first'))
-      await withImmichDependency(effects, async () => {
+      await withDependency(effects, IMMICH_ID, immichVersionRange, async () => {
         for (const key of [connection.key, connection.pendingKey])
           if (key) await revokeImmichAccess(effects, key.keyHash)
       })
@@ -74,7 +75,7 @@ export const disconnectImmich = sdk.Action.withInput(
         (a) => a.id === connection.userId,
       )
     )
-      await saveImmichSettings(effects, connection.userId, '', '')
+      await saveConnectionSettings(effects, 'immich', connection.userId, '', '')
     await updateImmichConnection(effects, connection.userId, () => null)
     return {
       version: '1',

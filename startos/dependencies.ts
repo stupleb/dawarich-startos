@@ -1,10 +1,18 @@
 import { storeJson } from './fileModels/store.json'
 import {
+  airtrailDescription,
   immichDescription,
   photonDescription,
   recorderDescription,
 } from './manifest/i18n'
-import { IMMICH_ID, immichVersionRange, PHOTON_ID, RECORDER_ID } from './utils'
+import {
+  AIRTRAIL_ID,
+  airtrailVersionRange,
+  IMMICH_ID,
+  immichVersionRange,
+  PHOTON_ID,
+  RECORDER_ID,
+} from './utils'
 import { sdk } from './sdk'
 
 export const dependencies = sdk.Dependencies.of()
@@ -37,6 +45,22 @@ export const dependencies = sdk.Dependencies.of()
       enabled: async ({ effects }) =>
         !!(await storeJson
           .read((s) => s.immichConnections.length > 0)
+          .const(effects)),
+    }),
+  )
+  .addDependency(
+    sdk.Dependency.optional(AIRTRAIL_ID, {
+      description: airtrailDescription,
+      metadata: {
+        title: 'AirTrail',
+        icon: 'https://raw.githubusercontent.com/stupleb/airtrail-startos/d98825cc20663be829117b85421abf7031aff416/icon.svg',
+      },
+      versionRange: airtrailVersionRange,
+      kind: 'running',
+      healthChecks: ['airtrail'],
+      enabled: async ({ effects }) =>
+        !!(await storeJson
+          .read((s) => s.airtrailConnections.length > 0)
           .const(effects)),
     }),
   )

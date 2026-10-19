@@ -3,6 +3,7 @@ import { i18n } from '../i18n'
 import { sdk } from '../sdk'
 import {
   IMMICH_ID,
+  immichVersionRange,
   immichMinVersion,
   immichSupported,
   immichVersion,
@@ -11,7 +12,7 @@ import {
   requestImmichAccess,
   revokeImmichAccess,
   updateImmichConnection,
-  withImmichDependency,
+  withDependency,
 } from '../utils'
 
 const { InputSpec, Value } = sdk
@@ -81,7 +82,7 @@ export const connectImmich = sdk.Action.withInput(
       (await storeJson.read((s) => s.immichConnections).once()) ?? []
     ).find((c) => c.userId === account.id)
     const pendingKey = newImmichKey(input.enrich)
-    await withImmichDependency(effects, async () => {
+    await withDependency(effects, IMMICH_ID, immichVersionRange, async () => {
       if (previous?.pendingKey)
         await revokeImmichAccess(effects, previous.pendingKey.keyHash)
       await updateImmichConnection(effects, account.id, (current) => ({

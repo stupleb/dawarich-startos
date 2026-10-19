@@ -24,6 +24,34 @@ const immichConnection = z.looseObject({
     .catch(null),
 })
 
+const airtrailKey = z.looseObject({
+  secret: z.string(),
+  keyHash: z.string(),
+})
+
+const airtrailConnection = z.looseObject({
+  userId: z.number().int(),
+  email: z.string(),
+  // The AirTrail username Connect AirTrail was told to expect.
+  username: z.string(),
+  airtrailUserId: z.string().nullable().catch(null),
+  // An approved account that isn't `username`, awaiting Confirm AirTrail Account.
+  held: z
+    .looseObject({
+      id: z.string(),
+      username: z.string(),
+      displayName: z.string(),
+    })
+    .nullable()
+    .catch(null),
+  key: airtrailKey.nullable().catch(null),
+  pendingKey: airtrailKey.nullable().catch(null),
+  problem: z
+    .looseObject({ code: z.string(), detail: z.string() })
+    .nullable()
+    .catch(null),
+})
+
 const shape = z.looseObject({
   postgresPassword: z.string().optional().catch(undefined),
   secretKeyBase: z.string().optional().catch(undefined),
@@ -38,6 +66,7 @@ const shape = z.looseObject({
   smtp: smtpShape,
   recorderLinks: z.array(recorderLink).catch([]),
   immichConnections: z.array(immichConnection).catch([]),
+  airtrailConnections: z.array(airtrailConnection).catch([]),
   // The Photon host the package last wrote; null while not connected.
   photonHost: z.string().nullable().catch(null),
 })
@@ -45,6 +74,8 @@ const shape = z.looseObject({
 export type RecorderLink = z.infer<typeof recorderLink>
 export type ImmichKey = z.infer<typeof immichKey>
 export type ImmichConnection = z.infer<typeof immichConnection>
+export type AirtrailKey = z.infer<typeof airtrailKey>
+export type AirtrailConnection = z.infer<typeof airtrailConnection>
 
 export const storeJson = FileHelper.json(
   { base: sdk.volumes.startos, subpath: './store.json' },

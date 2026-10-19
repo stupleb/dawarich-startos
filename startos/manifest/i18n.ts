@@ -57,3 +57,16 @@ export const photonDescription = {
   fr_FR:
     'Recherche l’adresse des positions dans les pays que sert Photon. Nécessaire uniquement pour cette fonction.',
 }
+
+export const airtrailDescription = {
+  en_US:
+    'Lets Dawarich import the flights of connected people. Only needed for that feature.',
+  es_ES:
+    'Permite a Dawarich importar los vuelos de las personas conectadas. Solo es necesario para esa función.',
+  de_DE:
+    'Ermöglicht Dawarich, die Flüge verbundener Personen zu importieren. Nur für diese Funktion nötig.',
+  pl_PL:
+    'Pozwala Dawarich importować loty połączonych osób. Potrzebne tylko do tej funkcji.',
+  fr_FR:
+    'Permet à Dawarich d’importer les vols des personnes connectées. Nécessaire uniquement pour cette fonction.',
+}
