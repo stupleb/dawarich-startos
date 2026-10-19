@@ -20,7 +20,8 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
    ```bash
    git -C <dawarich clone> diff <old>..<new> -- docker/ db/seeds.rb config/environments/production.rb lib/smtp_config.rb \
      app/controllers/api/v1/owntracks app/controllers/api/v1/imports_controller.rb app/services/own_tracks/params.rb \
-     app/services/settings/update.rb app/services/immich/connection_tester.rb
+     app/services/settings/update.rb app/services/immich/connection_tester.rb \
+     app/services/instance_settings app/services/geocoding/config.rb
    ```
 
    - `docker/web-entrypoint.sh` and `docker/sidekiq-entrypoint.sh` run as-is; a new step there needs nothing. A new required variable or service in `docker/docker-compose.yml` needs adding to `startos/utils.ts` / `startos/main.ts`.
@@ -28,9 +29,10 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
    - The Recorder sync (`assets/recorder-sync.rb`) depends on the OwnTracks endpoint, the imports API, and Dawarich converting OwnTracks speed only when `topic` is present.
    - `assets/admin.rb` depends on the `User` model's attributes.
    - `assets/immich.rb` depends on `Immich::ConnectionTester.new(url, api_key).call` returning `success`/`error`, and on `Settings::Update.new(user, params, refresh_photos_cache:).call` returning `success`/`alerts`.
+   - `assets/photon.rb` depends on `InstanceSettings::GeocodingInput.new(values)` (`valid?`, `errors`, normalized `values`) and `InstanceSettings::Resolver.set` / `.value` for `photon_api_host` and `photon_api_use_https`, and on Dawarich adding `/reverse` to a bare `host:port`.
    - `DOMAIN` must stay limited to links in outgoing emails (`grep -rn "ENV.*DOMAIN" app config lib` at the new tag): it falls back to another address while the chosen one is gone, which would be wrong for a URL Dawarich stores.
 
-4. Build, install over an existing instance, and check the web and background-job health checks, a sign-in, a linked Recorder user, and Connect Immich for an account.
+4. Build, install over an existing instance, and check the web and background-job health checks, a sign-in, a linked Recorder user, Connect Immich for an account, and Connect Photon with a new location getting its address.
 
 ## Supporting images
 

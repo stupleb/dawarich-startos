@@ -15,9 +15,11 @@ import {
   getApplicationHosts,
   getSmtpEnv,
   immichInstalled,
+  photonBridgeAddress,
   postgresEnv,
   primaryUrl,
   railsEnv,
+  savePhotonSettings,
   recorderInstalled,
   recorderMounts,
   syncStatusFile,
@@ -59,6 +61,11 @@ export const main = sdk.setupMain(async ({ effects }) => {
 
   const recorderPresent = await recorderInstalled(effects).const()
   const immichPresent = await immichInstalled(effects).const()
+  // Read once: Connect and Disconnect Photon write it while Dawarich runs.
+  const photonHost = await storeJson.read((s) => s.photonHost).once()
+  const photonAddress = photonHost
+    ? await photonBridgeAddress(effects).const()
+    : null
   const domain = urlHost(await primaryUrl.bestUsable(effects).const())
 
   const appEnv: Record<string, string> = {
@@ -201,6 +208,27 @@ export const main = sdk.setupMain(async ({ effects }) => {
       },
       requires: ['setup'],
     })
+    .addOneshot('photon-host', () =>
+      photonHost && photonAddress && photonAddress !== photonHost
+        ? {
+            subcontainer: null,
+            exec: {
+              fn: async () => {
+                const outcome = await savePhotonSettings(
+                  effects,
+                  photonAddress,
+                  photonHost,
+                )
+                await storeJson.merge(effects, {
+                  photonHost: outcome === 'written' ? photonAddress : null,
+                })
+                return null
+              },
+            },
+            requires: ['setup'],
+          }
+        : null,
+    )
     .addDaemon('web', {
       subcontainer: appSub,
       exec: {

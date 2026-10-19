@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '1.15.3:3',
+  version: '1.15.3:4',
   releaseNotes: {
     en_US:
-      'Dawarich’s actions stay available while a newly linked OwnTracks Recorder user’s history is imported.',
+      'New Connect Photon and Disconnect Photon actions look up the addresses of locations with the Photon service, in the countries it serves.',
     es_ES:
-      'Las acciones de Dawarich siguen disponibles mientras se importa el historial de un usuario de OwnTracks Recorder recién vinculado.',
+      'Las nuevas acciones Conectar Photon y Desconectar Photon buscan las direcciones de las ubicaciones con el servicio Photon, en los países que sirve.',
     de_DE:
-      'Die Aktionen von Dawarich bleiben verfügbar, während der Verlauf eines neu verknüpften OwnTracks-Recorder-Benutzers importiert wird.',
+      'Die neuen Aktionen Photon verbinden und Photon trennen ermitteln die Adressen von Standorten mit dem Dienst Photon, in den Ländern, die er abdeckt.',
     pl_PL:
-      'Akcje Dawarich pozostają dostępne podczas importu historii nowo połączonego użytkownika OwnTracks Recorder.',
+      'Nowe akcje Połącz Photon i Rozłącz Photon wyszukują adresy lokalizacji za pomocą usługi Photon, w obsługiwanych przez nią krajach.',
     fr_FR:
-      'Les actions de Dawarich restent disponibles pendant l’import de l’historique d’un utilisateur OwnTracks Recorder nouvellement lié.',
+      'Les nouvelles actions Connecter Photon et Déconnecter Photon recherchent l’adresse des positions avec le service Photon, dans les pays qu’il sert.',
   },
   migrations: {
     up: async ({ effects }) => {},

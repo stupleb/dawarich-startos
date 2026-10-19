@@ -33,6 +33,10 @@ export const SYNC_STATE_PATH = '/sync'
 export const IMMICH_ID = 'immich'
 export const immichMinVersion = '3.3.3:1'
 export const immichVersionRange = `>=${immichMinVersion}`
+export const PHOTON_ID = 'photon'
+// Photon's API binding (photon-startos/startos/utils.ts).
+const photonHostId = 'api'
+const photonPort = 2322
 
 export const dbMounts = sdk.Mounts.of().mountVolume({
   volumeId: 'db',
@@ -656,4 +660,62 @@ export async function checkImmichAccess(
     result: 'success',
     message: i18n('Connected: ${accounts}', { accounts: connected.join(', ') }),
   }
+}
+
+export function photonInstalled(effects: T.Effects) {
+  return sdk.getServiceManifest(effects, PHOTON_ID, (m) => m !== null)
+}
+
+export function photonBridgeAddress(effects: T.Effects) {
+  return sdk.host.getBridgeAddress(effects, {
+    packageId: PHOTON_ID,
+    hostId: photonHostId,
+    internalPort: photonPort,
+    ssl: false,
+  })
+}
+
+// An empty host clears the lookup; with `expected`, a host the admin has since changed is kept.
+export async function savePhotonSettings(
+  effects: T.Effects,
+  host: string,
+  expected: string | null,
+): Promise<'written' | 'kept'> {
+  const store = await storeJson.read().once()
+  const postgresPassword = store?.postgresPassword
+  const secretKeyBase = store?.secretKeyBase
+  if (!store || !postgresPassword || !secretKeyBase)
+    throw new Error(i18n('The package has not finished installing'))
+  return sdk.SubContainer.withTemp(
+    effects,
+    { imageId: 'dawarich' },
+    appMounts,
+    'save-photon-settings',
+    async (sub) => {
+      const res = await sub.exec(
+        ['bundle', 'exec', 'rails', 'runner', `${ASSETS_PATH}/photon.rb`],
+        {
+          cwd: '/var/app',
+          env: {
+            ...railsEnv({ ...store, postgresPassword, secretKeyBase }),
+            STARTOS_PHOTON_HOST: host,
+            ...(expected ? { STARTOS_PHOTON_EXPECT: expected } : {}),
+          },
+          timeout: 300_000,
+        },
+      )
+      const outcome = res.stdout
+        .toString()
+        .match(/^STARTOS_PHOTON=(\w+)$/m)?.[1]
+      if (res.exitCode !== 0 || (outcome !== 'written' && outcome !== 'kept')) {
+        console.error(`photon.rb failed: ${res.stderr.toString()}`)
+        throw new Error(
+          i18n(
+            'Dawarich could not save the address lookup settings. The service log has the details.',
+          ),
+        )
+      }
+      return outcome
+    },
+  )
 }

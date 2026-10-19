@@ -44,3 +44,16 @@ export const immichDescription = {
   fr_FR:
     'Permet à Dawarich d’afficher sur leurs cartes les photos Immich des personnes connectées. Nécessaire uniquement pour cette fonction.',
 }
+
+export const photonDescription = {
+  en_US:
+    'Looks up the addresses of locations in the countries Photon serves. Only needed for that feature.',
+  es_ES:
+    'Busca las direcciones de las ubicaciones en los países que sirve Photon. Solo es necesario para esa función.',
+  de_DE:
+    'Ermittelt die Adressen von Standorten in den Ländern, die Photon abdeckt. Nur für diese Funktion nötig.',
+  pl_PL:
+    'Wyszukuje adresy lokalizacji w krajach obsługiwanych przez Photon. Potrzebne tylko do tej funkcji.',
+  fr_FR:
+    'Recherche l’adresse des positions dans les pays que sert Photon. Nécessaire uniquement pour cette fonction.',
+}
