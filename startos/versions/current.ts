@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '1.15.3:4',
+  version: '1.15.3:5',
   releaseNotes: {
     en_US:
-      'New Connect Photon and Disconnect Photon actions look up the addresses of locations with the Photon service, in the countries it serves.',
+      'New Connect AirTrail, Confirm AirTrail Account and Disconnect AirTrail actions import a person’s flights from the AirTrail service once you approve access in AirTrail.',
     es_ES:
-      'Las nuevas acciones Conectar Photon y Desconectar Photon buscan las direcciones de las ubicaciones con el servicio Photon, en los países que sirve.',
+      'Las nuevas acciones Conectar AirTrail, Confirmar cuenta de AirTrail y Desconectar AirTrail importan los vuelos de una persona desde el servicio AirTrail cuando apruebas el acceso en AirTrail.',
     de_DE:
-      'Die neuen Aktionen Photon verbinden und Photon trennen ermitteln die Adressen von Standorten mit dem Dienst Photon, in den Ländern, die er abdeckt.',
+      'Die neuen Aktionen AirTrail verbinden, AirTrail-Konto bestätigen und AirTrail trennen importieren die Flüge einer Person aus dem Dienst AirTrail, sobald du den Zugriff in AirTrail genehmigst.',
     pl_PL:
-      'Nowe akcje Połącz Photon i Rozłącz Photon wyszukują adresy lokalizacji za pomocą usługi Photon, w obsługiwanych przez nią krajach.',
+      'Nowe akcje Połącz AirTrail, Potwierdź konto AirTrail i Rozłącz AirTrail importują loty osoby z usługi AirTrail, gdy zatwierdzisz dostęp w AirTrail.',
     fr_FR:
-      'Les nouvelles actions Connecter Photon et Déconnecter Photon recherchent l’adresse des positions avec le service Photon, dans les pays qu’il sert.',
+      'Les nouvelles actions Connecter AirTrail, Confirmer le compte AirTrail et Déconnecter AirTrail importent les vols d’une personne depuis le service AirTrail une fois l’accès approuvé dans AirTrail.',
   },
   migrations: {
     up: async ({ effects }) => {},

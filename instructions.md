@@ -10,6 +10,7 @@
 - **One address for everything:** the **Web UI** interface is both the website you open and the address your phone apps send locations to.
 - **Optional OwnTracks Recorder sync:** if you already run OwnTracks Recorder on this server, Dawarich can import each person's history from it and keep adding their new locations.
 - **Optional Immich photos:** if you run Immich on this server, Dawarich can show each person's photos on their map.
+- **Optional AirTrail flights:** if you run AirTrail on this server, Dawarich can import each person's flights and draw them on their map.
 - **Optional address lookups with Photon:** if you run Photon on this server, Dawarich can name the places in your history without asking an outside service.
 - **Optional email** for password resets, family invitations and monthly digests.
 
@@ -77,6 +78,23 @@ Photos without a location stay off the map. With **Add locations to photos** on,
 
 If you'd rather not give both accounts the same email, the person can connect under **Settings → Integrations** in Dawarich instead, with an API key they create in Immich and Immich's address. Use the LAN IP address shown on Immich's **Web UI** interface, port included, such as `https://192.168.1.20:12345`: Dawarich can't reach `.local` addresses from inside StartOS.
 
+## Importing flights from AirTrail
+
+This part is optional, and its actions only appear once AirTrail is installed.
+
+Dawarich can import the flights a person logged in AirTrail and draw them on their map. You connect their Dawarich account in Dawarich, then approve it in AirTrail.
+
+1. Find the person's current username in AirTrail (their **Settings → General**). People can change it, so check it now rather than from memory.
+2. With Dawarich and AirTrail running, run **Connect AirTrail**, choose the person's Dawarich account and enter that AirTrail username.
+3. On AirTrail's page in StartOS, open the task that names **dawarich**, the person's email and the username. Leave **Approve** selected, choose that account under **AirTrail Account**, and submit.
+4. Within a minute, Dawarich's **AirTrail** health check shows the person's email and AirTrail account as connected, and their flights are imported.
+
+If the account you approved isn't the username you entered, nothing is imported. Dawarich raises a task instead: run **Confirm AirTrail Account** to use that account or to refuse it, which removes Dawarich's key from AirTrail. This stops one person's flights from landing in another person's Dawarich account.
+
+To see the flights, open the map, turn on **Flights** in its settings panel, and choose dates that include them: the map only shows what's in the dates you're viewing. Dawarich imports only flights where the chosen AirTrail account is a passenger, syncs once a day, and **Sync AirTrail flights** under **Settings → Integrations** syncs at once.
+
+The approved AirTrail account keeps working if its username is changed later. If you denied the request, Dawarich's **AirTrail** health check keeps asking for approval: run **Disconnect AirTrail** to drop it, or **Connect AirTrail** to ask again. **Disconnect AirTrail** stops the import and deletes Dawarich's key in AirTrail.
+
 ## Looking up addresses with Photon
 
 This part is optional, and its actions only appear once Photon is installed.
@@ -111,6 +129,7 @@ Without email, you can still invite family members: Dawarich shows a link to cop
 - **Configure SMTP** and **Set Primary URL:** see **Email** above.
 - **Link OwnTracks Recorder User** and **Unlink OwnTracks Recorder User:** see **Using Dawarich with OwnTracks Recorder** above.
 - **Connect Immich** and **Disconnect Immich:** see **Showing Immich photos** above.
+- **Connect AirTrail**, **Confirm AirTrail Account** and **Disconnect AirTrail:** see **Importing flights from AirTrail** above.
 - **Connect Photon** and **Disconnect Photon:** see **Looking up addresses with Photon** above.
 
 ## Limitations
