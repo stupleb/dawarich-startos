@@ -142,6 +142,7 @@ export const setAdminPassword = sdk.Action.withInput(
             masked: false,
             copyable: true,
             qr: false,
+            launchable: false,
           },
           {
             type: 'single',
@@ -151,6 +152,7 @@ export const setAdminPassword = sdk.Action.withInput(
             masked: true,
             copyable: true,
             qr: false,
+            launchable: false,
           },
         ],
       },
