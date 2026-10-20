@@ -91,7 +91,7 @@ Dawarich can import the flights a person logged in AirTrail and draw them on the
 
 If the account you approved isn't the username you entered, nothing is imported. Dawarich raises a task instead: run **Confirm AirTrail Account** to use that account or to refuse it, which removes Dawarich's key from AirTrail. This stops one person's flights from landing in another person's Dawarich account.
 
-To see the flights, open the map, turn on **Flights** in its settings panel, and choose dates that include them: the map only shows what's in the dates you're viewing. Dawarich imports only flights where the chosen AirTrail account is a passenger, syncs once a day, and **Sync AirTrail flights** under **Settings → Integrations** syncs at once.
+To see the flights, open the map, turn on the **Flights** layer in its **Layers** tab, and choose dates that include them: the map only shows what's in the dates you're viewing. Dawarich imports only flights where the chosen AirTrail account is a passenger, syncs once a day, and **Sync AirTrail flights** under **Settings → Integrations** syncs at once.
 
 The approved AirTrail account keeps working if its username is changed later. If you denied the request, Dawarich's **AirTrail** health check keeps asking for approval: run **Disconnect AirTrail** to drop it, or **Connect AirTrail** to ask again. **Disconnect AirTrail** stops the import and deletes Dawarich's key in AirTrail.
 
