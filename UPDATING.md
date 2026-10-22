@@ -1,6 +1,6 @@
 # Updating the upstream version
 
-"Upstream" is the Dawarich Docker image `freikin/dawarich`, pinned by tag in `startos/manifest/index.ts` (`images.dawarich.source.dockerTag`). Tags are plain semver with no `v` prefix, matching the GitHub release tags. The two supporting images are pinned beside it: `valkey/valkey` in the manifest, and the PostgreSQL base in `postgis/Dockerfile`.
+"Upstream" is the Dawarich Docker image `freikin/dawarich`, pinned by tag in `startos/manifest/index.ts` (the `IMAGE` build arg of `images.dawarich.source.dockerBuild`). Tags are plain semver with no `v` prefix, matching the GitHub release tags. The two supporting images are pinned beside it: `valkey/valkey` in the manifest, and the PostgreSQL base in `postgis/Dockerfile`.
 
 ## Determining the upstream version
 
@@ -13,7 +13,14 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
 
 ## Applying the bump
 
-1. Set `images.dawarich.source.dockerTag` to `freikin/dawarich:<version>`.
+1. Set the `IMAGE` build arg of `images.dawarich.source.dockerBuild` to `freikin/dawarich:<version>`. `dawarich/Dockerfile` upgrades that image's `ca-certificates` until upstream ships a fixed store. Once the new tag no longer trusts emSign ECC Root CA - G3, delete `dawarich/` and go back to `source: { dockerTag: 'freikin/dawarich:<version>' }`:
+
+   ```bash
+   docker run --rm --entrypoint grep freikin/dawarich:<version> -c MIICTjCCAdOgAwIBAgIKPPYHqWhwDtqLhDAKBggqhkjOPQQDAzBr /etc/ssl/certs/ca-certificates.crt
+   ```
+
+   `0` means the image is fixed.
+
 2. Set `startos/versions/current.ts` to `<version>:0` and write release notes per the workspace's release-note rules. When the version already there has an `up` that does work, first move it into its own file under `startos/versions/` and list it in `other` in `index.ts`.
 3. Diff what the package runs or depends on between the two tags:
 
