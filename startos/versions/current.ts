@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '1.16.0:2',
+  version: '1.17.0:0',
   releaseNotes: {
     en_US:
-      'Dawarich asks you to confirm the address used in the links of its emails, and asks again if that address is removed. Its web server also uses less memory, and the new Set Worker Count action lets it serve more visitors at once.',
+      'Updated Dawarich to 1.17.0: long trips and the points page open much faster, large imports need less memory, and Foursquare Swarm check-ins can be imported. Server-side poster rendering moves to a Node.js release with a security fix. [Full release notes](https://github.com/Freika/dawarich/releases/tag/1.17.0)',
     es_ES:
-      'Dawarich te pide confirmar la dirección que usan los enlaces de sus correos, y vuelve a pedirlo si esa dirección se elimina. Su servidor web también usa menos memoria, y la nueva acción Establecer número de procesos le permite atender a más visitantes a la vez.',
+      'Dawarich actualizado a 1.17.0: los viajes largos y la página de puntos se abren mucho más rápido, las importaciones grandes necesitan menos memoria y se pueden importar los check-ins de Foursquare Swarm. La generación de pósteres en el servidor pasa a una versión de Node.js con una corrección de seguridad. [Notas completas](https://github.com/Freika/dawarich/releases/tag/1.17.0)',
     de_DE:
-      'Dawarich bittet dich, die Adresse für die Links in seinen E-Mails zu bestätigen, und fragt erneut, wenn diese Adresse entfernt wird. Sein Webserver braucht außerdem weniger Speicher, und die neue Aktion Worker-Anzahl festlegen lässt ihn mehr Besucher gleichzeitig bedienen.',
+      'Dawarich auf 1.17.0 aktualisiert: Lange Reisen und die Punkteseite öffnen sich viel schneller, große Importe brauchen weniger Speicher, und Check-ins aus Foursquare Swarm lassen sich importieren. Das Erstellen von Postern auf dem Server läuft jetzt mit einer Node.js-Version, die eine Sicherheitslücke schließt. [Vollständige Versionshinweise](https://github.com/Freika/dawarich/releases/tag/1.17.0)',
     pl_PL:
-      'Dawarich prosi o potwierdzenie adresu używanego w linkach w jego wiadomościach e-mail i pyta ponownie, gdy ten adres zostanie usunięty. Jego serwer WWW zużywa też mniej pamięci, a nowa akcja Ustaw liczbę procesów pozwala mu obsłużyć więcej odwiedzających jednocześnie.',
+      'Zaktualizowano Dawarich do wersji 1.17.0: długie podróże i strona punktów otwierają się znacznie szybciej, duże importy zużywają mniej pamięci, a zameldowania z Foursquare Swarm można importować. Tworzenie plakatów na serwerze korzysta teraz z wersji Node.js z poprawką bezpieczeństwa. [Pełne informacje o wydaniu](https://github.com/Freika/dawarich/releases/tag/1.17.0)',
     fr_FR:
-      "Dawarich vous demande de confirmer l'adresse utilisée dans les liens de ses e-mails, et vous la redemande si cette adresse est supprimée. Son serveur web utilise aussi moins de mémoire, et la nouvelle action Définir le nombre de processus lui permet de servir plus de visiteurs à la fois.",
+      "Dawarich mis à jour vers 1.17.0 : les longs voyages et la page des points s'ouvrent bien plus vite, les gros imports demandent moins de mémoire, et les check-ins de Foursquare Swarm peuvent être importés. La création des affiches sur le serveur passe à une version de Node.js qui corrige une faille de sécurité. [Notes de version complètes](https://github.com/Freika/dawarich/releases/tag/1.17.0)",
   },
   migrations: {
     up: async ({ effects }) => {},

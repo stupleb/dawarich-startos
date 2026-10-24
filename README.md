@@ -35,11 +35,11 @@
 
 ## Image and Container Runtime
 
-Three images run as five processes. The Dawarich image is upstream's with its CA store upgraded by `dawarich/Dockerfile`, a temporary layer that comes out once upstream ships an image built on a fixed store; the database image is built by this package, because upstream's PostGIS image is published for x86_64 only.
+Three images run as five processes. The Dawarich image is upstream's, unmodified; the database image is built by this package, because upstream's PostGIS image is published for x86_64 only.
 
 | Image      | Source                                                                                            | Architectures   |
 | ---------- | ------------------------------------------------------------------------------------------------- | --------------- |
-| `dawarich` | `dawarich/Dockerfile`: `freikin/dawarich` with Debian's current `ca-certificates`                 | x86_64, aarch64 |
+| `dawarich` | `freikin/dawarich`, unmodified                                                                    | x86_64, aarch64 |
 | `postgres` | `postgis/Dockerfile`: the official `postgres` image plus PostGIS from PostgreSQL's apt repository | x86_64, aarch64 |
 | `valkey`   | `valkey/valkey` (Alpine)                                                                          | x86_64, aarch64 |
 
@@ -95,7 +95,7 @@ One model, `store.json` on the `startos` volume. Dawarich itself has no configur
 | `photonHost`           | Connect / Disconnect Photon, `photon-host`                  | The Photon host the package last wrote to Dawarich's instance settings; null while not connected                                                                                                                                       |
 | `immichConnections`    | Connect / Disconnect Immich, the Immich check               | Dawarich account id and email → the key in use and the key awaiting approval (each its secret, the secret's SHA-256, and whether it may add locations), and why a request was dropped                                                  |
 
-Variables re-asserted on every start: the database, Valkey and secret variables; `APPLICATION_HOSTS` (see [Network Access and Interfaces](#network-access-and-interfaces)); `APPLICATION_PROTOCOL=http`; `TIME_ZONE=UTC`; `WEB_CONCURRENCY` (`0` for one worker, otherwise the worker count); `BACKGROUND_PROCESSING_CONCURRENCY=3`; `PROMETHEUS_EXPORTER_ENABLED=false`; the `SMTP_*` set; and `DOMAIN`, the host and port of the address email links use. That is `primaryUrl` followed to its hostname's current port; while it is unset or no longer one of the interface's addresses, a public domain if there is one, else the `.local` address. Only HTTPS addresses qualify, because Dawarich writes `https://` into every email link. Dawarich restarts when that address changes.
+Variables re-asserted on every start: the database, Valkey and secret variables; `APPLICATION_HOSTS` (see [Network Access and Interfaces](#network-access-and-interfaces)); `APPLICATION_PROTOCOL=http`; `TIME_ZONE=UTC`; `WEB_CONCURRENCY` (`0` for one worker, otherwise the worker count); `BACKGROUND_PROCESSING_CONCURRENCY=3`; `SIDEKIQ_EMBEDDED=false`, since jobs run in the `sidekiq` daemon; `PROMETHEUS_EXPORTER_ENABLED=false`; the `SMTP_*` set; and `DOMAIN`, the host and port of the address email links use. That is `primaryUrl` followed to its hostname's current port; while it is unset or no longer one of the interface's addresses, a public domain if there is one, else the `.local` address. Only HTTPS addresses qualify, because Dawarich writes `https://` into every email link. Dawarich restarts when that address changes.
 
 **What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings; once Immich approves a connection, the package writes that account's Immich settings through the same code Dawarich's Integrations page uses, the same goes for AirTrail once its connection is approved, and Connect Photon writes the Photon settings through the code behind **Settings → Instance**.
 
@@ -328,7 +328,7 @@ The package's operable surface in one block; each key mirrors a section above.
 
 ```yaml
 package_id: dawarich
-image: freikin/dawarich + dawarich/Dockerfile (CA store upgrade) # plus a built postgres+PostGIS image and valkey/valkey
+image: freikin/dawarich # plus a built postgres+PostGIS image and valkey/valkey
 architectures:
   - x86_64
   - aarch64
@@ -361,6 +361,7 @@ startos_managed_env_vars:
   - APPLICATION_PROTOCOL
   - TIME_ZONE
   - WEB_CONCURRENCY # 0 for one worker, otherwise the worker count
+  - SIDEKIQ_EMBEDDED # false; jobs run in the sidekiq daemon
   - BACKGROUND_PROCESSING_CONCURRENCY
   - PROMETHEUS_EXPORTER_ENABLED
   - DOMAIN

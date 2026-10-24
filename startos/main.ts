@@ -79,6 +79,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
     // One worker runs Puma in single mode; a cluster of one only adds a master process.
     WEB_CONCURRENCY: String(config.webWorkers > 1 ? config.webWorkers : 0),
     BACKGROUND_PROCESSING_CONCURRENCY: '3',
+    SIDEKIQ_EMBEDDED: 'false',
     PROMETHEUS_EXPORTER_ENABLED: 'false',
     ...(domain ? { DOMAIN: domain } : {}),
     ...(await getSmtpEnv(effects, config.smtp)),

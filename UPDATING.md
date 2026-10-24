@@ -1,6 +1,6 @@
 # Updating the upstream version
 
-"Upstream" is the Dawarich Docker image `freikin/dawarich`, pinned by tag in `startos/manifest/index.ts` (the `IMAGE` build arg of `images.dawarich.source.dockerBuild`). Tags are plain semver with no `v` prefix, matching the GitHub release tags. The two supporting images are pinned beside it: `valkey/valkey` in the manifest, and the PostgreSQL base in `postgis/Dockerfile`.
+"Upstream" is the Dawarich Docker image `freikin/dawarich`, pinned by tag in `startos/manifest/index.ts` (`images.dawarich.source.dockerTag`). Tags are plain semver with no `v` prefix, matching the GitHub release tags. The two supporting images are pinned beside it: `valkey/valkey` in the manifest, and the PostgreSQL base in `postgis/Dockerfile`.
 
 ## Determining the upstream version
 
@@ -13,13 +13,7 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
 
 ## Applying the bump
 
-1. Set the `IMAGE` build arg of `images.dawarich.source.dockerBuild` to `freikin/dawarich:<version>`. `dawarich/Dockerfile` upgrades that image's `ca-certificates` until upstream ships a fixed store. Once the new tag no longer trusts emSign ECC Root CA - G3, delete `dawarich/` and go back to `source: { dockerTag: 'freikin/dawarich:<version>' }`:
-
-   ```bash
-   docker run --rm --entrypoint grep freikin/dawarich:<version> -c MIICTjCCAdOgAwIBAgIKPPYHqWhwDtqLhDAKBggqhkjOPQQDAzBr /etc/ssl/certs/ca-certificates.crt
-   ```
-
-   `0` means the image is fixed.
+1. Set `images.dawarich.source.dockerTag` to `freikin/dawarich:<version>`.
 
 2. Set `startos/versions/current.ts` to `<version>:0` and write release notes per the workspace's release-note rules. When the version already there has an `up` that does work, first move it into its own file under `startos/versions/` and list it in `other` in `index.ts`.
 3. Diff what the package runs or depends on between the two tags:
@@ -28,7 +22,8 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
    git -C <dawarich clone> diff <old>..<new> -- docker/ db/seeds.rb config/environments/production.rb lib/smtp_config.rb \
      app/controllers/api/v1/owntracks app/controllers/api/v1/imports_controller.rb app/services/own_tracks/params.rb \
      app/services/settings/update.rb app/services/immich/connection_tester.rb \
-     app/services/instance_settings app/services/geocoding/config.rb app/services/air_trail app/jobs/air_trail
+     app/services/instance_settings app/services/geocoding/config.rb app/services/air_trail app/jobs/air_trail \
+     config/puma.rb config/initializers/sidekiq.rb lib/dawarich/embedded_sidekiq.rb
    ```
 
    - `docker/web-entrypoint.sh` and `docker/sidekiq-entrypoint.sh` run as-is; a new step there needs nothing. A new required variable or service in `docker/docker-compose.yml` needs adding to `startos/utils.ts` / `startos/main.ts`.
@@ -38,6 +33,7 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
    - `assets/immich.rb` depends on `Immich::ConnectionTester.new(url, api_key).call` returning `success`/`error`, and on `Settings::Update.new(user, params, refresh_photos_cache:).call` returning `success`/`alerts`.
    - `assets/airtrail.rb` depends on `AirTrail::ConnectionTester.new(url, api_key).call` returning `success`/`error`, on `Settings::Update` recording `airtrail_url` / `airtrail_api_key` / `airtrail_skip_ssl_verification`, and on `AirTrail::ImportFlightsJob.perform_later(user_id)`. Dawarich must keep calling AirTrail with only `GET /api/flight/list?scope=mine`, which the `flight.read.own` key covers.
    - `assets/photon.rb` depends on `InstanceSettings::GeocodingInput.new(values)` (`valid?`, `errors`, normalized `values`) and `InstanceSettings::Resolver.set` / `.value` for `photon_api_host` and `photon_api_use_https`, and on Dawarich adding `/reverse` to a bare `host:port`.
+   - `config/puma.rb` and `lib/dawarich/embedded_sidekiq.rb` decide whether jobs also run inside Puma. The package runs them in its own `sidekiq` daemon with `SIDEKIQ_EMBEDDED=false`; a new variable that turns embedded jobs on needs the same treatment.
    - `DOMAIN` must stay limited to links in outgoing emails (`grep -rn "ENV.*DOMAIN" app config lib` at the new tag): it falls back to another address while the chosen one is gone, which would be wrong for a URL Dawarich stores.
 
 4. Build, install over an existing instance, and check the web and background-job health checks, a sign-in, a linked Recorder user, Connect Immich for an account, Connect AirTrail for an account, and Connect Photon with a new location getting its address.
