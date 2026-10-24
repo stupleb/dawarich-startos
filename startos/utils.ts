@@ -818,8 +818,7 @@ export async function updateAirtrailConnection(
 export const airtrailConfirmTaskId = (userId: number) =>
   `airtrail-confirm:${userId}`
 
-// Puts an approved key into use, holds it for Confirm AirTrail Account when it opens another account
-// than expected, or withdraws it with the reason it can't be used.
+// A key approved for an unexpected account waits for Confirm AirTrail Account.
 export async function adoptAirtrailKey(
   effects: T.Effects,
   c: AirtrailConnection,

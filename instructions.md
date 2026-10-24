@@ -2,7 +2,7 @@
 
 ## Documentation
 
-- [Dawarich documentation](https://dawarich.app/docs/intro) — the upstream guide to tracking apps, imports, settings and integrations.
+- [Dawarich documentation](https://dawarich.app/docs/*) — the upstream guide to tracking apps, imports, settings and integrations.
 
 ## What you get on StartOS
 
@@ -119,7 +119,7 @@ Connect Photon fills in the **Photon** section under **Settings → Instance** i
 ## Email
 
 1. Run **Configure SMTP** and choose your StartOS system SMTP or another mail server.
-2. Links in Dawarich's emails use your public domain if Dawarich has one, otherwise your `.local` address. To pick a different address, run **Set Primary URL**; only HTTPS addresses are offered. If the address you picked is removed later, the links move to one that still works.
+2. Links in Dawarich's emails use your public domain if Dawarich has one, otherwise your `.local` address. Dawarich asks you to confirm that address once, through **Set Primary URL**, where you can also pick another; only HTTPS addresses are offered. If the address you picked is removed later, the links move to one that still works and Dawarich asks you to choose again.
 
 Without email, you can still invite family members: Dawarich shows a link to copy on the invitation page.
 
@@ -127,6 +127,7 @@ Without email, you can still invite family members: Dawarich shows a link to cop
 
 - **Set Admin Password:** sets the admin's sign-in email and generates a new password, also unlocking the account if it was locked after failed sign-ins. Use it to change that email or if you lose the password.
 - **Configure SMTP** and **Set Primary URL:** see **Email** above.
+- **Set Worker Count:** lets Dawarich serve more people at once, at the cost of memory. One worker suits most households; raise it if Dawarich is slow while several people use it.
 - **Link OwnTracks Recorder User** and **Unlink OwnTracks Recorder User:** see **Using Dawarich with OwnTracks Recorder** above.
 - **Connect Immich** and **Disconnect Immich:** see **Showing Immich photos** above.
 - **Connect AirTrail**, **Confirm AirTrail Account** and **Disconnect AirTrail:** see **Importing flights from AirTrail** above.

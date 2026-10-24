@@ -69,6 +69,7 @@ const shape = z.looseObject({
   airtrailConnections: z.array(airtrailConnection).catch([]),
   // The Photon host the package last wrote; null while not connected.
   photonHost: z.string().nullable().catch(null),
+  webWorkers: z.number().int().min(1).max(8).catch(1),
 })
 
 export type RecorderLink = z.infer<typeof recorderLink>
