@@ -41,6 +41,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
       otpKeyDerivationSalt: s.otpKeyDerivationSalt,
       smtp: s.smtp,
       recorderLinks: s.recorderLinks,
+      webWorkers: s.webWorkers,
     }))
     .const(effects)
   const postgresPassword = config?.postgresPassword
@@ -75,7 +76,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
     ...railsEnv({ ...config, postgresPassword, secretKeyBase }),
     APPLICATION_PROTOCOL: 'http',
     APPLICATION_HOSTS: (await getApplicationHosts(effects)).join(','),
-    WEB_CONCURRENCY: '1',
+    // One worker runs Puma in single mode; a cluster of one only adds a master process.
+    WEB_CONCURRENCY: String(config.webWorkers > 1 ? config.webWorkers : 0),
     BACKGROUND_PROCESSING_CONCURRENCY: '3',
     PROMETHEUS_EXPORTER_ENABLED: 'false',
     ...(domain ? { DOMAIN: domain } : {}),
@@ -250,12 +252,17 @@ export const main = sdk.setupMain(async ({ effects }) => {
       ready: {
         display: i18n('Web Interface'),
         gracePeriod: 300_000,
-        // Puma binds only once the app has loaded.
-        fn: () =>
-          sdk.healthCheck.checkPortListening(effects, uiPort, {
-            successMessage: i18n('The web interface is ready'),
-            errorMessage: i18n('The web interface is not ready'),
-          }),
+        fn: async () =>
+          (
+            await fetch(`http://127.0.0.1:${uiPort}/api/v1/health`, {
+              signal: AbortSignal.timeout(5_000),
+            }).catch(() => null)
+          )?.ok
+            ? { result: 'success', message: i18n('The web interface is ready') }
+            : {
+                result: 'failure',
+                message: i18n('The web interface is not ready'),
+              },
       },
       requires: ['admin-applied'],
     })

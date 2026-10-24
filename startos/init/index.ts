@@ -6,6 +6,7 @@ import { setInterfaces } from '../interfaces'
 import { sdk } from '../sdk'
 import { revokeAirtrailAccess, revokeImmichAccess } from '../utils'
 import { versionGraph } from '../versions'
+import { primaryUrlTask } from './primaryUrlTask'
 import { seedFiles } from './seedFiles'
 import { watchAdminPassword } from './watchAdminPassword'
 
@@ -15,6 +16,7 @@ export const init = sdk.setupInit(
   seedFiles,
   setInterfaces,
   actions,
+  primaryUrlTask,
   dependencies,
   watchAdminPassword,
 )

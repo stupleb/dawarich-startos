@@ -10,12 +10,14 @@ import { disconnectImmich } from './disconnectImmich'
 import { disconnectPhoton } from './disconnectPhoton'
 import { linkRecorderUser } from './linkRecorderUser'
 import { setAdminPassword } from './setAdminPassword'
+import { setWorkerCount } from './setWorkerCount'
 import { unlinkRecorderUser } from './unlinkRecorderUser'
 
 export const actions = sdk.Actions.of()
   .addAction(setAdminPassword)
   .addAction(configureSmtp)
   .addAction(primaryUrl.action)
+  .addAction(setWorkerCount)
   .addAction(linkRecorderUser)
   .addAction(unlinkRecorderUser)
   .addAction(connectImmich)

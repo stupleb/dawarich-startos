@@ -156,6 +156,13 @@ const dict = {
   'AirTrail no longer accepts that key. Run Connect AirTrail again.': 142,
   'AirTrail Account Confirmed': 143,
   'Dawarich now imports the flights of the AirTrail account ${username} into ${email}.': 144,
+
+  // actions/setWorkerCount.ts
+  'Web Workers': 145,
+  'How many requests Dawarich serves at once. Each worker beyond the first is another process, so more workers handle more simultaneous visitors at the cost of more memory.': 146,
+  'Set Worker Count': 147,
+  'Trade memory for concurrency. Dawarich restarts to apply the change.': 148,
+  workers: 149,
 } as const
 
 /**
