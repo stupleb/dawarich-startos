@@ -1,7 +1,7 @@
 {
   "name": "dawarich-startos",
   "dependencies": {
-    "@start9labs/start-sdk": "3.1.0",
+    "@start9labs/start-sdk": "3.1.1",
     "immich-startos": "github:Start9Labs/immich-startos#next",
     "owntracks-recorder-startos": "github:Start9Labs/owntracks-recorder-startos#next"
   },

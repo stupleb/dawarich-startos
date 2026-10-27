@@ -13,7 +13,7 @@ export const manifest = setupManifest({
   volumes: ['startos', 'main', 'db', 'valkey'],
   images: {
     dawarich: {
-      source: { dockerTag: 'freikin/dawarich:1.17.0' },
+      source: { dockerTag: 'freikin/dawarich:1.18.1' },
       arch: ['x86_64', 'aarch64'],
     },
     postgres: {

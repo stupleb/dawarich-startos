@@ -54,7 +54,7 @@ export const setAdminPassword = sdk.Action.withInput(
     if (!store?.adminPassword) return {}
     const live = await queryDatabase(
       effects,
-      'SELECT email FROM users WHERE admin ORDER BY id LIMIT 1',
+      'SELECT email FROM users WHERE admin AND deleted_at IS NULL ORDER BY id LIMIT 1',
     )
     return { email: live?.trim() || store.adminEmail }
   },
