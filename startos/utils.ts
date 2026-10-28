@@ -337,7 +337,7 @@ export async function listDawarichAccounts(
 ): Promise<{ id: number; email: string }[]> {
   const out = await queryDatabase(
     effects,
-    'SELECT id, email FROM users ORDER BY id',
+    'SELECT id, email FROM users WHERE deleted_at IS NULL ORDER BY id',
   )
   return (out ?? '')
     .split('\n')

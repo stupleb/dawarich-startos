@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '1.17.0:0',
+  version: '1.18.1:0',
   releaseNotes: {
     en_US:
-      'Updated Dawarich to 1.17.0: long trips and the points page open much faster, large imports need less memory, and Foursquare Swarm check-ins can be imported. Server-side poster rendering moves to a Node.js release with a security fix. [Full release notes](https://github.com/Freika/dawarich/releases/tag/1.17.0)',
+      'Updated Dawarich to 1.18.1: geofencing with webhooks, privacy zones that also hide data on your own map, Areas merged into Places, and a choice of date and time formats. [Full release notes](https://github.com/Freika/dawarich/releases/tag/1.18.1)\n\nBack up Dawarich before updating. After the update it reworks tracks, flights, digests, places and visits across your whole history in the background, which can take hours on a long history and cannot be undone.',
     es_ES:
-      'Dawarich actualizado a 1.17.0: los viajes largos y la página de puntos se abren mucho más rápido, las importaciones grandes necesitan menos memoria y se pueden importar los check-ins de Foursquare Swarm. La generación de pósteres en el servidor pasa a una versión de Node.js con una corrección de seguridad. [Notas completas](https://github.com/Freika/dawarich/releases/tag/1.17.0)',
+      'Dawarich actualizado a 1.18.1: geovallas con webhooks, zonas de privacidad que también ocultan datos en tu propio mapa, las Áreas se integran en los Lugares y puedes elegir el formato de fecha y hora. [Notas completas](https://github.com/Freika/dawarich/releases/tag/1.18.1)\n\nHaz una copia de seguridad de Dawarich antes de actualizar. Tras la actualización, rehace en segundo plano los trayectos, vuelos, resúmenes, lugares y visitas de todo tu historial, lo que puede llevar horas con un historial largo y no se puede deshacer.',
     de_DE:
-      'Dawarich auf 1.17.0 aktualisiert: Lange Reisen und die Punkteseite öffnen sich viel schneller, große Importe brauchen weniger Speicher, und Check-ins aus Foursquare Swarm lassen sich importieren. Das Erstellen von Postern auf dem Server läuft jetzt mit einer Node.js-Version, die eine Sicherheitslücke schließt. [Vollständige Versionshinweise](https://github.com/Freika/dawarich/releases/tag/1.17.0)',
+      'Dawarich auf 1.18.1 aktualisiert: Geofencing mit Webhooks, Privatsphäre-Zonen, die Daten auch auf deiner eigenen Karte ausblenden, Bereiche werden zu Orten, und Datums- und Zeitformate sind wählbar. [Vollständige Versionshinweise](https://github.com/Freika/dawarich/releases/tag/1.18.1)\n\nSichere Dawarich vor dem Update. Danach überarbeitet es im Hintergrund Strecken, Flüge, Rückblicke, Orte und Besuche deines gesamten Verlaufs. Das kann bei einem langen Verlauf Stunden dauern und lässt sich nicht rückgängig machen.',
     pl_PL:
-      'Zaktualizowano Dawarich do wersji 1.17.0: długie podróże i strona punktów otwierają się znacznie szybciej, duże importy zużywają mniej pamięci, a zameldowania z Foursquare Swarm można importować. Tworzenie plakatów na serwerze korzysta teraz z wersji Node.js z poprawką bezpieczeństwa. [Pełne informacje o wydaniu](https://github.com/Freika/dawarich/releases/tag/1.17.0)',
+      'Zaktualizowano Dawarich do wersji 1.18.1: geofencing z webhookami, strefy prywatności ukrywające dane także na Twojej mapie, Obszary połączone z Miejscami oraz wybór formatu daty i godziny. [Pełne informacje o wydaniu](https://github.com/Freika/dawarich/releases/tag/1.18.1)\n\nZrób kopię zapasową Dawarich przed aktualizacją. Po aktualizacji w tle przelicza trasy, loty, podsumowania, miejsca i wizyty z całej historii, co przy długiej historii może potrwać godziny i nie da się tego cofnąć.',
     fr_FR:
-      "Dawarich mis à jour vers 1.17.0 : les longs voyages et la page des points s'ouvrent bien plus vite, les gros imports demandent moins de mémoire, et les check-ins de Foursquare Swarm peuvent être importés. La création des affiches sur le serveur passe à une version de Node.js qui corrige une faille de sécurité. [Notes de version complètes](https://github.com/Freika/dawarich/releases/tag/1.17.0)",
+      "Dawarich mis à jour vers 1.18.1 : géorepérage avec webhooks, zones de confidentialité qui masquent aussi les données sur votre propre carte, Zones fusionnées dans les Lieux, et choix du format de date et d'heure. [Notes de version complètes](https://github.com/Freika/dawarich/releases/tag/1.18.1)\n\nSauvegardez Dawarich avant de mettre à jour. Après la mise à jour, il retravaille en arrière-plan les trajets, vols, bilans, lieux et visites de tout votre historique, ce qui peut prendre des heures avec un long historique et ne peut pas être annulé.",
   },
   migrations: {
     up: async ({ effects }) => {},
