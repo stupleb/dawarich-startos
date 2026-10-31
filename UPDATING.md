@@ -23,15 +23,13 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
      app/controllers/api/v1/owntracks app/controllers/api/v1/imports_controller.rb app/services/own_tracks/params.rb \
      app/services/settings/update.rb app/services/immich/connection_tester.rb \
      app/services/instance_settings app/services/geocoding/config.rb app/services/air_trail app/jobs/air_trail \
-     config/puma.rb config/initializers/sidekiq.rb lib/dawarich/embedded_sidekiq.rb \
-     app/services/places/areas_backfill.rb app/services/visits/detection/visit_rescore.rb
+     config/puma.rb config/initializers/sidekiq.rb lib/dawarich/embedded_sidekiq.rb
    ```
 
    - `docker/web-entrypoint.sh` and `docker/sidekiq-entrypoint.sh` run as-is; a new step there needs nothing. A new required variable or service in `docker/docker-compose.yml` needs adding to `startos/utils.ts` / `startos/main.ts`.
    - `db/seeds.rb` must still create the demo account only when there are no users — the package creates its admin before the seed runs, and that is the whole guarantee.
    - The Recorder sync (`assets/recorder-sync.rb`) depends on the OwnTracks endpoint, the imports API, and Dawarich converting OwnTracks speed only when `topic` is present.
    - `assets/admin.rb` depends on the `User` model's attributes.
-   - `assets/data-repair.rb` covers two rows upstream's data migrations fail on: an Area name over 255 characters (`Places::AreasBackfill`) and a point without coordinates in an unscored visit (`Visits::Detection::VisitRescore`). Drop a fix once upstream handles its case.
    - `assets/immich.rb` depends on `Immich::ConnectionTester.new(url, api_key).call` returning `success`/`error`, and on `Settings::Update.new(user, params, refresh_photos_cache:).call` returning `success`/`alerts`.
    - `assets/airtrail.rb` depends on `AirTrail::ConnectionTester.new(url, api_key).call` returning `success`/`error`, on `Settings::Update` recording `airtrail_url` / `airtrail_api_key` / `airtrail_skip_ssl_verification`, and on `AirTrail::ImportFlightsJob.perform_later(user_id)`. Dawarich must keep calling AirTrail with only `GET /api/flight/list?scope=mine`, which the `flight.read.own` key covers.
    - `assets/photon.rb` depends on `InstanceSettings::GeocodingInput.new(values)` (`valid?`, `errors`, normalized `values`) and `InstanceSettings::Resolver.set` / `.value` for `photon_api_host` and `photon_api_use_https`, and on Dawarich adding `/reverse` to a bare `host:port`.
