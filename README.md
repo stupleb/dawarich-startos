@@ -52,9 +52,7 @@ Three images run as five processes. The Dawarich image is upstream's, unmodified
 
 Start order: `postgres` and `valkey` → `setup` → `admin-applied` (clears the pending-password flag once `setup` has applied it) → `web` → `sidekiq` and `recorder-sync`.
 
-- **`setup`** installs this server's root CA into the container's trust store, runs `rails db:migrate`, then runs two scripts in one `rails runner`:
-  - `assets/data-repair.rb` fixes rows that earlier Dawarich versions allowed and that its background data migrations fail on. It shortens area names longer than 255 characters, the most a Place name holds, since every Area becomes a Place. It detaches points without coordinates from visits that have no confidence score yet, since scoring reads every point's coordinates. Each fix logs how many rows it changed, and does nothing when no row needs it.
-  - `assets/admin.rb` creates the admin account on an empty database, and applies an email and password the Set Admin Password action could not apply itself.
+- **`setup`** installs this server's root CA into the container's trust store, runs `rails db:migrate`, and runs `assets/admin.rb` under `rails runner`, which creates the admin account on an empty database, and applies an email and password the Set Admin Password action could not apply itself.
 - **`web`** runs upstream's `web-entrypoint.sh` (migrations, data migrations, `db:seed`, then Puma on port 3000: one process with one worker, or a master and one process per worker with more).
 - **`sidekiq`** runs upstream's `sidekiq-entrypoint.sh` with three job threads.
 - **`recorder-sync`** runs `assets/recorder-sync.rb`, a stdlib-only Ruby script, in its own subcontainer of the Dawarich image.

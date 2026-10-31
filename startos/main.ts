@@ -187,9 +187,8 @@ export const main = sdk.setupMain(async ({ effects }) => {
         command: [
           'sh',
           '-c',
-          'update-ca-certificates >/dev/null && bundle exec rails db:migrate && bundle exec rails runner "ARGV.each { |f| load f }" "$@"',
+          'update-ca-certificates >/dev/null && bundle exec rails db:migrate && bundle exec rails runner "$1"',
           'setup',
-          `${ASSETS_PATH}/data-repair.rb`,
           `${ASSETS_PATH}/admin.rb`,
         ],
         cwd: '/var/app',
