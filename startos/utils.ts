@@ -761,7 +761,7 @@ export async function requestAirtrailAccess(
     actionId: 'request-access',
     input: () => ({
       keyHash: key.keyHash,
-      permissions: ['flight.read.own', 'profile.read'],
+      permissions: ['flight.read.own', 'profile.read', 'tracks.read'],
       label: label.slice(0, 64),
     }),
   })
