@@ -22,6 +22,7 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
    git -C <dawarich clone> diff <old>..<new> -- docker/ db/seeds.rb config/environments/production.rb lib/smtp_config.rb \
      app/controllers/api/v1/owntracks app/controllers/api/v1/imports_controller.rb app/services/own_tracks/params.rb \
      app/services/settings/update.rb app/services/immich/connection_tester.rb \
+     app/services/concerns/url_validatable.rb app/services/integrations/transport.rb \
      app/services/instance_settings app/services/geocoding/config.rb app/services/air_trail app/jobs/air_trail \
      config/puma.rb config/initializers/sidekiq.rb lib/dawarich/embedded_sidekiq.rb
    ```
@@ -30,6 +31,7 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
    - `db/seeds.rb` must still create the demo account only when there are no users — the package creates its admin before the seed runs, and that is the whole guarantee.
    - The Recorder sync (`assets/recorder-sync.rb`) depends on the OwnTracks endpoint, the imports API, and Dawarich converting OwnTracks speed only when `topic` is present.
    - `assets/admin.rb` depends on the `User` model's attributes.
+   - Connect Immich and Connect AirTrail save `http://10.0.3.1:<port>` URLs, so Dawarich must keep allowing private addresses for integrations while `SELF_HOSTED=true` (`url_validatable.rb`).
    - `assets/immich.rb` depends on `Immich::ConnectionTester.new(url, api_key).call` returning `success`/`error`, and on `Settings::Update.new(user, params, refresh_photos_cache:).call` returning `success`/`alerts`.
    - `assets/airtrail.rb` depends on `AirTrail::ConnectionTester.new(url, api_key).call` returning `success`/`error`, on `Settings::Update` recording `airtrail_url` / `airtrail_api_key` / `airtrail_skip_ssl_verification`, and on `AirTrail::ImportFlightsJob.perform_later(user_id)`. Dawarich must keep calling AirTrail with only GET requests that the key's `flight.read.own` and `tracks.read` cover: `/api/flight/list?scope=mine`, `/api/v1/flights` and `/api/v1/flights/<id>/track`.
    - `assets/photon.rb` depends on `InstanceSettings::GeocodingInput.new(values)` (`valid?`, `errors`, normalized `values`) and `InstanceSettings::Resolver.set` / `.value` for `photon_api_host` and `photon_api_use_https`, and on Dawarich adding `/reverse` to a bare `host:port`.
@@ -40,5 +42,5 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
 
 ## Supporting images
 
-- **`postgis/Dockerfile`** pins `postgres:<17.x>-trixie` and installs `postgresql-17-postgis-3` from PostgreSQL's apt repository at build time. Move the 17.x minor freely. Never change the major version without a migration that dumps and restores the database: a new major cannot read the old cluster.
+- **`postgis/Dockerfile`** pins `postgres:<17.x>-trixie` and installs `postgresql-17-postgis-3` from PostgreSQL's apt repository at build time, with `postgresql-17` beside it so the server moves to the 17.x that PostGIS was built for. Move the 17.x minor freely. Never change the major version without a migration that dumps and restores the database: a new major cannot read the old cluster.
 - **`valkey/valkey`**: move within the same major freely. Its data is a job queue and cache.
