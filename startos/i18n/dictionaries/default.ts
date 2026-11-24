@@ -163,6 +163,27 @@ const dict = {
   'Set Worker Count': 147,
   'Trade memory for concurrency. Dawarich restarts to apply the change.': 148,
   workers: 149,
+
+  // TREK (utils.ts, actions/connectTrek.ts, actions/disconnectTrek.ts)
+  'No Dawarich account is connected to TREK': 150,
+  'Paused while TREK is stopped': 151,
+  'TREK has no address Dawarich can reach': 152,
+  'Waiting for TREK to answer': 153,
+  'Approve Dawarich’s request for ${email} in TREK’s tasks. If you denied it, run Disconnect TREK to stop asking, or Connect TREK to ask again.': 154,
+  'The Dawarich account ${email} no longer exists. Run Disconnect TREK for it.': 155,
+  'Dawarich could not use TREK for ${email} (${detail}). Run Connect TREK again.': 156,
+  'TREK no longer accepts the key for ${email}. Run Connect TREK again.': 157,
+  'Connect TREK': 158,
+  'Sync a person’s TREK trips into Dawarich. Dawarich asks TREK for access, and you approve it in TREK’s tasks.': 159,
+  TREK: 160,
+  'Start TREK first': 161,
+  'TREK Access Requested': 162,
+  'In TREK’s tasks, approve Dawarich’s request with the TREK account whose trips go to ${email}. Dawarich then finishes connecting by itself, and its TREK health check shows when it has. To choose which trips to import, sign in to Dawarich as ${email} and open Settings → Integrations → TREK.': 163,
+  'Disconnect TREK': 164,
+  'Stop syncing a person’s TREK trips, and revoke Dawarich’s access in TREK for them. Trips already imported stay in Dawarich.': 165,
+  'That account is not connected to TREK': 166,
+  'TREK Disconnected': 167,
+  'Dawarich no longer syncs ${email}’s TREK trips, and its access in TREK is revoked. The trips already imported stay.': 168,
 } as const
 
 /**

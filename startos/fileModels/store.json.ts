@@ -52,6 +52,22 @@ const airtrailConnection = z.looseObject({
     .catch(null),
 })
 
+const trekKey = z.looseObject({
+  secret: z.string(),
+  keyHash: z.string(),
+})
+
+const trekConnection = z.looseObject({
+  userId: z.number().int(),
+  email: z.string(),
+  key: trekKey.nullable().catch(null),
+  pendingKey: trekKey.nullable().catch(null),
+  problem: z
+    .looseObject({ code: z.string(), detail: z.string() })
+    .nullable()
+    .catch(null),
+})
+
 const shape = z.looseObject({
   postgresPassword: z.string().optional().catch(undefined),
   secretKeyBase: z.string().optional().catch(undefined),
@@ -67,6 +83,7 @@ const shape = z.looseObject({
   recorderLinks: z.array(recorderLink).catch([]),
   immichConnections: z.array(immichConnection).catch([]),
   airtrailConnections: z.array(airtrailConnection).catch([]),
+  trekConnections: z.array(trekConnection).catch([]),
   // The Photon host the package last wrote; null while not connected.
   photonHost: z.string().nullable().catch(null),
   webWorkers: z.number().int().min(1).max(8).catch(1),
@@ -77,6 +94,8 @@ export type ImmichKey = z.infer<typeof immichKey>
 export type ImmichConnection = z.infer<typeof immichConnection>
 export type AirtrailKey = z.infer<typeof airtrailKey>
 export type AirtrailConnection = z.infer<typeof airtrailConnection>
+export type TrekKey = z.infer<typeof trekKey>
+export type TrekConnection = z.infer<typeof trekConnection>
 
 export const storeJson = FileHelper.json(
   { base: sdk.volumes.startos, subpath: './store.json' },

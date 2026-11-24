@@ -11,6 +11,7 @@
 - **Optional OwnTracks Recorder sync:** if you already run OwnTracks Recorder on this server, Dawarich can import each person's history from it and keep adding their new locations.
 - **Optional Immich photos:** if you run Immich on this server, Dawarich can show each person's photos on their map.
 - **Optional AirTrail flights:** if you run AirTrail on this server, Dawarich can import each person's flights and draw them on their map.
+- **Optional TREK trips:** if you run TREK on this server, Dawarich can copy the trips each person plans there and keep them up to date.
 - **Optional address lookups with Photon:** if you run Photon on this server, Dawarich can name the places in your history without asking an outside service.
 - **Optional email** for password resets, family invitations and monthly digests.
 
@@ -95,6 +96,23 @@ To see the flights, open the map, turn on the **Flights** layer in its **Layers*
 
 The approved AirTrail account keeps working if its username is changed later. If you denied the request, Dawarich's **AirTrail** health check keeps asking for approval: run **Disconnect AirTrail** to drop it, or **Connect AirTrail** to ask again. **Disconnect AirTrail** stops the import and deletes Dawarich's key in AirTrail.
 
+## Syncing trips from TREK
+
+This part is optional, and its actions only appear once TREK is installed.
+
+Dawarich can copy the trips a person plans in TREK into their Dawarich trips, with each day's places, notes, bookings and stays, and keep them up to date. You connect their Dawarich account in Dawarich, approve it in TREK, and then the person chooses which trips to copy.
+
+1. With Dawarich and TREK running, run **Connect TREK** and choose the person's Dawarich account.
+2. On TREK's page in StartOS, open the task that names **dawarich** and the person's email. Leave **Approve** selected, choose their account under **TREK Account**, and submit.
+3. Within a minute, Dawarich's **TREK** health check shows the person's email as connected.
+4. Signed in to Dawarich as that person, open **Settings → Integrations → TREK**, click **Choose trips**, tick the trips to copy and click **Import selected trips**. Only trips with start and end dates in TREK can be chosen.
+
+Dawarich syncs the chosen trips every 6 hours, and **Sync now** in the same place syncs at once. TREK stays the source of the plan, so make changes there.
+
+Dawarich can't tell which TREK account you approved, so pick the person's own: that account's trips are the ones Dawarich copies. A TREK account holds at most 10 API keys; if TREK says the account is full, delete one under **Settings → Integrations** in TREK and approve again.
+
+If you denied the request, Dawarich's **TREK** health check keeps asking for approval: run **Disconnect TREK** to drop it, or **Connect TREK** to ask again. **Disconnect TREK** stops the sync and deletes Dawarich's key in TREK. Trips already copied stay in Dawarich.
+
 ## Looking up addresses with Photon
 
 This part is optional, and its actions only appear once Photon is installed.
@@ -131,6 +149,7 @@ Without email, you can still invite family members: Dawarich shows a link to cop
 - **Link OwnTracks Recorder User** and **Unlink OwnTracks Recorder User:** see **Using Dawarich with OwnTracks Recorder** above.
 - **Connect Immich** and **Disconnect Immich:** see **Showing Immich photos** above.
 - **Connect AirTrail**, **Confirm AirTrail Account** and **Disconnect AirTrail:** see **Importing flights from AirTrail** above.
+- **Connect TREK** and **Disconnect TREK:** see **Syncing trips from TREK** above.
 - **Connect Photon** and **Disconnect Photon:** see **Looking up addresses with Photon** above.
 
 ## Limitations

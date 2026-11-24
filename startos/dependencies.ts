@@ -4,6 +4,7 @@ import {
   immichDescription,
   photonDescription,
   recorderDescription,
+  trekDescription,
 } from './manifest/i18n'
 import {
   AIRTRAIL_ID,
@@ -12,6 +13,8 @@ import {
   immichVersionRange,
   PHOTON_ID,
   RECORDER_ID,
+  TREK_ID,
+  trekVersionRange,
 } from './utils'
 import { sdk } from './sdk'
 
@@ -61,6 +64,22 @@ export const dependencies = sdk.Dependencies.of()
       enabled: async ({ effects }) =>
         !!(await storeJson
           .read((s) => s.airtrailConnections.length > 0)
+          .const(effects)),
+    }),
+  )
+  .addDependency(
+    sdk.Dependency.optional(TREK_ID, {
+      description: trekDescription,
+      metadata: {
+        title: 'TREK',
+        icon: 'https://raw.githubusercontent.com/liketrek/TREK/8809654a43fe718605c03530bd78367f431719ea/client/public/icons/icon.svg',
+      },
+      versionRange: trekVersionRange,
+      kind: 'running',
+      healthChecks: ['trek'],
+      enabled: async ({ effects }) =>
+        !!(await storeJson
+          .read((s) => s.trekConnections.length > 0)
           .const(effects)),
     }),
   )

@@ -9,7 +9,7 @@
 > upstream documentation is accurate and fully applicable — see the
 > Documentation section of `instructions.md` for links.
 
-[Dawarich](https://github.com/Freika/dawarich) keeps a location history — from phone apps, from imported Google Takeout and other files — and shows it as a map, timeline, visits, trips and statistics. This package runs it with its database and job queue, creates the admin account itself so the upstream demo account never exists, can mirror the users of the OwnTracks Recorder package into Dawarich accounts, and can connect Dawarich accounts to their Immich photos.
+[Dawarich](https://github.com/Freika/dawarich) keeps a location history — from phone apps, from imported Google Takeout and other files — and shows it as a map, timeline, visits, trips and statistics. This package runs it with its database and job queue, creates the admin account itself so the upstream demo account never exists, can mirror the users of the OwnTracks Recorder package into Dawarich accounts, can connect Dawarich accounts to their Immich photos, AirTrail flights and TREK trips, and can look up addresses with Photon.
 
 - **Upstream repo:** <https://github.com/Freika/dawarich>
 - **Wrapper repo:** <https://github.com/stupleb/dawarich-startos>
@@ -92,23 +92,25 @@ One model, `store.json` on the `startos` volume. Dawarich itself has no configur
 | `smtp`                 | Configure SMTP                                              | Becomes the `SMTP_*` variables                                                                                                                                                                                                         |
 | `recorderLinks`        | Link / Unlink OwnTracks Recorder User                       | Recorder user → Dawarich account id and email                                                                                                                                                                                          |
 | `airtrailConnections`  | Connect / Confirm / Disconnect AirTrail, the AirTrail check | Dawarich account id and email → the AirTrail username expected, the approved account's id, the key in use and the key awaiting approval (secret and SHA-256), an approved account held for confirmation, and why a request was dropped |
+| `trekConnections`      | Connect / Disconnect TREK, the TREK check                   | Dawarich account id and email → the key in use and the key awaiting approval (secret and SHA-256), and why a request was dropped                                                                                                       |
 | `photonHost`           | Connect / Disconnect Photon, `photon-host`                  | The Photon host the package last wrote to Dawarich's instance settings; null while not connected                                                                                                                                       |
 | `immichConnections`    | Connect / Disconnect Immich, the Immich check               | Dawarich account id and email → the key in use and the key awaiting approval (each its secret, the secret's SHA-256, and whether it may add locations), and why a request was dropped                                                  |
 
 Variables re-asserted on every start: the database, Valkey and secret variables; `APPLICATION_HOSTS` (see [Network Access and Interfaces](#network-access-and-interfaces)); `APPLICATION_PROTOCOL=http`; `TIME_ZONE=UTC`; `WEB_CONCURRENCY` (`0` for one worker, otherwise the worker count); `BACKGROUND_PROCESSING_CONCURRENCY=3`; `SIDEKIQ_EMBEDDED=false`, since jobs run in the `sidekiq` daemon; `PROMETHEUS_EXPORTER_ENABLED=false`; the `SMTP_*` set; and `DOMAIN`, the host and port of the address email links use. That is `primaryUrl` followed to its hostname's current port; while it is unset or no longer one of the interface's addresses, a public domain if there is one, else the `.local` address. Only HTTPS addresses qualify, because Dawarich writes `https://` into every email link. Dawarich restarts when that address changes.
 
-**What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings; once Immich approves a connection, the package writes that account's Immich settings through the same code Dawarich's Integrations page uses, the same goes for AirTrail once its connection is approved, and Connect Photon writes the Photon settings through the code behind **Settings → Instance**.
+**What the package leaves alone:** none of Dawarich's instance-setting variables (`PHOTON_API_HOST`, `GEOAPIFY_API_KEY`, `STORE_GEODATA` and the rest) are set, so every field under **Settings → Instance** stays editable in Dawarich and is stored in its database. Sign-up, users, integrations, map tiles and each user's time zone are likewise Dawarich's own settings; once Immich approves a connection, the package writes that account's Immich settings through the same code Dawarich's Integrations page uses, the same goes for AirTrail and TREK once their connections are approved, and Connect Photon writes the Photon settings through the code behind **Settings → Instance**.
 
 **Changing the admin account in Dawarich is safe.** The package never re-applies its password on a start; only the Set Admin Password action changes it.
 
 ## Dependencies
 
-Four optional dependencies. OwnTracks Recorder is enabled only while at least one Recorder user is linked; StartOS then expects it running with its **MQTT Broker** (`mosquitto`) and **Recorder** (`recorder`) checks passing. Immich is enabled only while at least one account is connected or waiting for approval; StartOS then expects it running. AirTrail is enabled only while at least one account is connected, waiting or held; StartOS then expects it running with its **AirTrail** (`airtrail`) check passing. Photon is enabled only while connected; StartOS then expects it running with its **Photon** (`photon`) check passing. Its `data` check is left out, because it reports loading during routine rebuilds while the API keeps answering. Each one shows a warning on Dawarich's page when it isn't, and never stops Dawarich from starting.
+Five optional dependencies. OwnTracks Recorder is enabled only while at least one Recorder user is linked; StartOS then expects it running with its **MQTT Broker** (`mosquitto`) and **Recorder** (`recorder`) checks passing. Immich is enabled only while at least one account is connected or waiting for approval; StartOS then expects it running. AirTrail is enabled only while at least one account is connected, waiting or held; StartOS then expects it running with its **AirTrail** (`airtrail`) check passing. TREK is enabled only while at least one account is connected or waiting for approval; StartOS then expects it running with its **Web Interface** (`trek`) check passing. Photon is enabled only while connected; StartOS then expects it running with its **Photon** (`photon`) check passing. Its `data` check is left out, because it reports loading during routine rebuilds while the API keeps answering. Each one shows a warning on Dawarich's page when it isn't, and never stops Dawarich from starting.
 
 | Dependency         | Required                                                      | Mount                                                                                         | Why                                                                                             |
 | ------------------ | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | OwnTracks Recorder | No; expected running while a user is linked                   | its `main` volume, subpath `recorder/rec`, at `/recorder`, read-only, in `recorder-sync` only | The per-user, per-device, per-month `.rec` files the Recorder stores                            |
 | AirTrail           | No; expected running while an account is connected            | none                                                                                          | Its hidden `request-access` and `revoke-access` actions, and its web port on the StartOS bridge |
+| TREK               | No; expected running while an account is connected or waiting | none                                                                                          | Its hidden `request-access` and `revoke-access` actions, and its web port on the StartOS bridge |
 | Photon             | No; expected running while connected                          | none                                                                                          | Its API port on the StartOS bridge                                                              |
 | Immich             | No; expected running while an account is connected or waiting | none                                                                                          | Its hidden `request-access` and `revoke-access` actions, and its web port on the StartOS bridge |
 
@@ -119,6 +121,8 @@ Only the `rec/` tree is mounted. The Recorder's `store.json`, which holds every 
 Nothing is sent to the Recorder, and the phones keep talking MQTT to it.
 
 **How the AirTrail connection works.** It follows the Immich connection: Connect AirTrail declares the dependency for the call, generates a key, stores it as the account's pending key, withdraws the account's earlier waiting request, and sends AirTrail only the key's SHA-256 through `request-access`, asking for `flight.read.own`, `profile.read` and `tracks.read`, labelled "<Dawarich email> → <expected username>". AirTrail raises its own task, where the user approves the request with an AirTrail account or denies it; an approved key appears under that account's AirTrail security settings as `StartOS: dawarich`. The **AirTrail** health check calls AirTrail's `GET /api/v1/me` with the key every 15 seconds: `401` means not approved, and a `200` names the account. AirTrail accounts have no email and their usernames can change, so the person's AirTrail username is entered at Connect. When the approved account has that username, ignoring case, `assets/airtrail.rb` runs under `rails runner`: Dawarich's own AirTrail connection test, the settings update behind Dawarich's Integrations page, and a first flight import. The key goes into use, the key it replaces is revoked, and the account's AirTrail `id` is recorded, so renaming it later changes nothing. When the approved account has another username, nothing is saved or imported: the account is held, Dawarich raises an important task, and **Confirm AirTrail Account** either adopts the key or revokes it. The address saved is AirTrail's web port on the StartOS bridge (`http://10.0.3.1:<port>`), plain HTTP; Dawarich only sends GET requests with the key there, which AirTrail's HTTPS-only sign-in check does not cover. Dawarich imports only flights where the chosen account is a passenger (`scope=mine`), each with its recorded track when AirTrail has one, daily at 02:00 and on **Sync AirTrail flights**. Disconnect revokes the account's keys and clears its AirTrail settings; uninstalling Dawarich revokes all of its keys if AirTrail is running.
+
+**How the TREK connection works.** It follows the Immich connection. Connect TREK declares the dependency for the call and generates a key in TREK's own format (`trek_` and 48 hex characters). It stores the key as the account's pending key, withdraws the account's earlier waiting request, and sends TREK the key's SHA-256 and its first 13 characters through `request-access`, labelled with the Dawarich account's email. It asks for `trips`, `days`, `places`, `notes`, `reservations`, `accommodations` and `travellers`, the sections Dawarich's TREK import stores; `bucket-list` and `stats` are left out. TREK raises its own task, where the user approves the request with a TREK account or denies it. An approved key appears in that account's TREK API keys as `StartOS: dawarich (<email>)`, read-only, and a TREK account holds at most 10 keys. TREK's public API has no endpoint that names the key's account, so Dawarich takes whichever account was approved. The **TREK** health check calls TREK's `GET /api/v1/trips` with the key every 15 seconds: `401` means not approved, and a denied request looks the same. On a `200`, `assets/trek.rb` runs under `rails runner` and follows Dawarich's own TREK settings page: the TREK source at that address is created or updated with the key, after Dawarich's connection test (a trip list) passes. The key then goes into use and the key it replaces is revoked. A source still importing trips is refused as on that page, and the check reports it. Connecting imports nothing by itself: the person picks trips under **Settings → Integrations → TREK → Choose trips**, as with a source added by hand, and Dawarich syncs the chosen trips every 6 hours and on **Sync now**. The address saved is TREK's web port on the StartOS bridge (`http://10.0.3.1:<port>`), plain HTTP; Dawarich allows private addresses for integrations while self-hosted. Disconnect revokes the account's keys through `revoke-access`, then removes the TREK source holding the key in use, keeping its trips, which stop syncing, as Dawarich's own **Disconnect** does. Uninstalling Dawarich revokes all of its keys if TREK is running.
 
 **How the Photon connection works.** Connect Photon reads Photon's API port on the StartOS bridge (`10.0.3.1:<port>`, plain HTTP) and runs `assets/photon.rb` under `rails runner`, which writes Dawarich's instance settings `photon_api_host` (that host) and `photon_api_use_https` (off) through the code behind **Settings → Instance**, so they show there and stay editable. Dawarich adds the `/reverse` path itself and sends no API key while that field is empty; Photon needs none. Sidekiq picks up the change at once, and the web process within 30 seconds while it runs one worker (at once with more), without a restart. `photonHost` records the host, which declares the dependency. While connected, `main` watches the bridge address, and the `photon-host` oneshot rewrites the setting if Photon's port changes. Disconnect clears `photon_api_host`, so Dawarich has no lookup provider. Both the rewrite and Disconnect leave the setting alone when it no longer holds the host the package wrote, because the admin changed it, and the package then stops managing it.
 
@@ -152,7 +156,7 @@ The first start takes about a minute on a small x86 server; later starts take un
 
 ## Actions
 
-Thirteen actions. The two Recorder actions sit in an **OwnTracks Recorder** group and stay hidden until OwnTracks Recorder is installed; Unlink also needs a linked user. The two Immich actions sit in an **Immich** group: Connect is hidden until Immich is installed and disabled while the installed Immich predates access requests, and Disconnect needs an account that is connected or waiting for approval. The three AirTrail actions sit in an **AirTrail** group: Connect is hidden until AirTrail is installed, Confirm appears only while an approved account is held, and Disconnect needs an account that is connected, waiting or held. The two Photon actions sit in a **Photon** group: Connect is hidden until Photon is installed, and Disconnect needs a connection.
+Fifteen actions. The two Recorder actions sit in an **OwnTracks Recorder** group and stay hidden until OwnTracks Recorder is installed; Unlink also needs a linked user. The two Immich actions sit in an **Immich** group: Connect is hidden until Immich is installed and disabled while the installed Immich predates access requests, and Disconnect needs an account that is connected or waiting for approval. The three AirTrail actions sit in an **AirTrail** group: Connect is hidden until AirTrail is installed, Confirm appears only while an approved account is held, and Disconnect needs an account that is connected, waiting or held. The two TREK actions sit in a **TREK** group: Connect is hidden until TREK is installed, and Disconnect needs an account that is connected or waiting for approval. The two Photon actions sit in a **Photon** group: Connect is hidden until Photon is installed, and Disconnect needs a connection.
 
 ### Set Admin Password
 
@@ -241,6 +245,22 @@ Thirteen actions. The two Recorder actions sit in an **OwnTracks Recorder** grou
 - **What it changes:** revokes the account's keys in AirTrail, in use, waiting or held, clears the account's AirTrail address and key in Dawarich, and removes the account from `airtrailConnections`. Flights already imported stay.
 - **Refuses** while AirTrail is installed but stopped. With AirTrail uninstalled, it only clears Dawarich's side.
 
+### Connect TREK
+
+- **When:** to sync a person's TREK trips into their Dawarich account, or to ask again after a request was denied.
+- **Input:** the Dawarich account (no default).
+- **What it changes:** generates a key, records it as the account's pending key in `trekConnections`, and asks TREK for access with it. TREK raises a task that names the Dawarich account's email. Once the user approves it, the TREK health check saves the key as the account's TREK source within 15 seconds. A key already in use keeps working until then.
+- **Refuses** while TREK is stopped.
+- **Cost:** a few seconds, no restart. Putting the key into use later takes about ten seconds more (a temporary Rails process).
+- **Repeat safety:** each run withdraws the account's waiting request and makes a new one. TREK deletes the key a newly approved one replaces in the same TREK account.
+- **Outputs:** where to approve the request, and where the person chooses which trips to import.
+
+### Disconnect TREK
+
+- **When:** to stop syncing a person's TREK trips, or to drop a request you denied in TREK.
+- **What it changes:** revokes the account's keys in TREK, in use or waiting, removes the account's TREK source in Dawarich, and removes the account from `trekConnections`. Trips already imported stay and stop syncing.
+- **Refuses** while TREK is installed but stopped. With TREK uninstalled, it only clears Dawarich's side.
+
 ### Connect Photon
 
 - **When:** to have Dawarich look up addresses with the Photon service on this server, or to take the setting back after changing it by hand.
@@ -269,7 +289,7 @@ A service that will not start and offers no Start button is waiting on the admin
 
 ## Health Checks
 
-Three checks are shown, plus Immich and AirTrail while each is installed and one that appears only when something is wrong. The database and Valkey checks are hidden.
+Three checks are shown, plus Immich, AirTrail and TREK while each is installed and one that appears only when something is wrong. The database and Valkey checks are hidden.
 
 | Check                   | Probes                                                                                                                                                                     | Grace |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
@@ -278,6 +298,7 @@ Three checks are shown, plus Immich and AirTrail while each is installed and one
 | OwnTracks Recorder Sync | The Recorder's run state, then `status.json` written by `recorder-sync`; only while a user is linked                                                                       | 1 min |
 | Immich                  | Each account's key against Immich's `GET /api/users/me` every 15 seconds, putting approved keys into use; only while Immich is installed                                   | 10 s  |
 | AirTrail                | Each account's key against AirTrail's `GET /api/v1/me` every 15 seconds, putting approved keys into use or holding them for confirmation; only while AirTrail is installed | 10 s  |
+| TREK                    | Each account's key against TREK's `GET /api/v1/trips` every 15 seconds, putting approved keys into use; only while TREK is installed                                       | 10 s  |
 
 - **Web Interface failing past its grace period:** the log shows why — a migration error from `setup`, or Puma failing to boot. `setup` failing stops the chain before `web` starts.
 - **Background Jobs failing:** imports stay "created", stats and tracks are not generated, and emails are not sent. Look for Sidekiq's error in the log.
@@ -291,6 +312,9 @@ Three checks are shown, plus Immich and AirTrail while each is installed and one
 - **AirTrail, healthy:** lists each connected Dawarich email with the AirTrail username it imports from, as AirTrail reports it now. `disabled` means no account is connected or waiting.
 - **AirTrail, `loading`:** names each request AirTrail has not approved (a denied request looks the same: Disconnect AirTrail to stop asking, or Connect AirTrail to ask again), and each approved account held for Confirm AirTrail Account. Also "Paused" while AirTrail is stopped.
 - **AirTrail, `failure`:** a deleted Dawarich account, Dawarich's connection test failing, or AirTrail no longer accepting the key, because it or its account was deleted in AirTrail or another request was approved with the same account. Run Connect AirTrail again, or Disconnect AirTrail for a deleted account.
+- **TREK, healthy:** lists the connected accounts. `disabled` means no account is connected or waiting.
+- **TREK, `loading`:** names each account whose request TREK has not approved (a denied request looks the same: Disconnect TREK to stop asking, or Connect TREK to ask again). Also "Paused" while TREK is stopped, and "Waiting for TREK to answer" while it starts.
+- **TREK, `failure`:** a deleted Dawarich account, Dawarich's connection test failing or the source still importing (its reason is shown), or TREK no longer accepting the key, because it or its account was deleted in TREK or another request was approved with the same account. Run Connect TREK again, or Disconnect TREK for a deleted account.
 
 These log lines look like faults and are not:
 
@@ -371,6 +395,7 @@ dependencies:
   - owntracks-recorder # optional; enabled while a user is linked, then expected running
   - immich # optional; enabled while an account is connected or waiting, then expected running
   - airtrail # optional; enabled while an account is connected, waiting or held, then expected running with its airtrail check
+  - trek # optional; enabled while an account is connected or waiting, then expected running with its trek check
   - photon # optional; enabled while connected, then expected running with its photon check
 interfaces:
   ui: { type: ui, port: 3000 }
@@ -386,6 +411,8 @@ actions:
   - connect-airtrail # hidden until AirTrail is installed
   - confirm-airtrail-account # only while an approved account is held
   - disconnect-airtrail # hidden until an account is connected, waiting or held
+  - connect-trek # hidden until TREK is installed
+  - disconnect-trek # hidden until an account is connected or waiting
   - connect-photon # hidden until Photon is installed
   - disconnect-photon # hidden until connected
 tasks:
@@ -398,4 +425,5 @@ health_checks:
   - recorder-missing # only while a user is linked and the Recorder is not installed
   - immich # only while Immich is installed
   - airtrail # only while AirTrail is installed
+  - trek # only while TREK is installed
 ```

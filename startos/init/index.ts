@@ -4,7 +4,11 @@ import { dependencies } from '../dependencies'
 import { storeJson } from '../fileModels/store.json'
 import { setInterfaces } from '../interfaces'
 import { sdk } from '../sdk'
-import { revokeAirtrailAccess, revokeImmichAccess } from '../utils'
+import {
+  revokeAirtrailAccess,
+  revokeImmichAccess,
+  revokeTrekAccess,
+} from '../utils'
 import { versionGraph } from '../versions'
 import { primaryUrlTask } from './primaryUrlTask'
 import { seedFiles } from './seedFiles'
@@ -31,5 +35,9 @@ export const uninit = sdk.setupUninit(versionGraph, async (effects, target) => {
   if (store?.airtrailConnections.length)
     await revokeAirtrailAccess(effects, null).catch((e) =>
       console.error(`Could not revoke Dawarich's access to AirTrail: ${e}`),
+    )
+  if (store?.trekConnections.length)
+    await revokeTrekAccess(effects, null).catch((e) =>
+      console.error(`Could not revoke Dawarich's access to TREK: ${e}`),
     )
 })
