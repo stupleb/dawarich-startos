@@ -24,6 +24,7 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
      app/services/settings/update.rb app/services/immich/connection_tester.rb \
      app/services/concerns/url_validatable.rb app/services/integrations/transport.rb \
      app/services/instance_settings app/services/geocoding/config.rb app/services/air_trail app/jobs/air_trail \
+     app/services/trek app/controllers/settings/trek_sources_controller.rb app/models/trip_source.rb \
      config/puma.rb config/initializers/sidekiq.rb lib/dawarich/embedded_sidekiq.rb
    ```
 
@@ -34,11 +35,12 @@ Confirm the image tag exists for `amd64` and `arm64` before pinning it. Dawarich
    - Connect Immich and Connect AirTrail save `http://10.0.3.1:<port>` URLs, so Dawarich must keep allowing private addresses for integrations while `SELF_HOSTED=true` (`url_validatable.rb`).
    - `assets/immich.rb` depends on `Immich::ConnectionTester.new(url, api_key).call` returning `success`/`error`, and on `Settings::Update.new(user, params, refresh_photos_cache:).call` returning `success`/`alerts`.
    - `assets/airtrail.rb` depends on `AirTrail::ConnectionTester.new(url, api_key).call` returning `success`/`error`, on `Settings::Update` recording `airtrail_url` / `airtrail_api_key` / `airtrail_skip_ssl_verification`, and on `AirTrail::ImportFlightsJob.perform_later(user_id)`. Dawarich must keep calling AirTrail with only GET requests that the key's `flight.read.own` and `tracks.read` cover: `/api/flight/list?scope=mine`, `/api/v1/flights` and `/api/v1/flights/<id>/track`.
+   - `assets/trek.rb` repeats `Settings::TrekSourcesController#create` and `#destroy`: the source found by `provider` and `base_url`, the test `Trek::Client.new(source).trips`, the refusal while `importing?`, and trips unlinked with `trip_source: nil, source_status: :stopped`. Carry a change there into the script. `requestTrekAccess` in `startos/utils.ts` asks for every TREK section `Trek::Itinerary` reads; a section it starts reading needs its scope added.
    - `assets/photon.rb` depends on `InstanceSettings::GeocodingInput.new(values)` (`valid?`, `errors`, normalized `values`) and `InstanceSettings::Resolver.set` / `.value` for `photon_api_host` and `photon_api_use_https`, and on Dawarich adding `/reverse` to a bare `host:port`.
    - `config/puma.rb` and `lib/dawarich/embedded_sidekiq.rb` decide whether jobs also run inside Puma. The package runs them in its own `sidekiq` daemon with `SIDEKIQ_EMBEDDED=false`; a new variable that turns embedded jobs on needs the same treatment.
    - `DOMAIN` must stay limited to links in outgoing emails (`grep -rn "ENV.*DOMAIN" app config lib` at the new tag): it falls back to another address while the chosen one is gone, which would be wrong for a URL Dawarich stores.
 
-4. Build, install over an existing instance, and check the web and background-job health checks, a sign-in, a linked Recorder user, Connect Immich for an account, Connect AirTrail for an account, and Connect Photon with a new location getting its address.
+4. Build, install over an existing instance, and check the web and background-job health checks, a sign-in, a linked Recorder user, Connect Immich for an account, Connect AirTrail for an account, Connect TREK with a trip imported, and Connect Photon with a new location getting its address.
 
 ## Supporting images
 

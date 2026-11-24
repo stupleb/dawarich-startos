@@ -20,6 +20,8 @@ import {
   ImmichConnection,
   ImmichKey,
   storeJson,
+  TrekConnection,
+  TrekKey,
 } from './fileModels/store.json'
 import { confirmAirtrailAccount } from './actions/confirmAirtrailAccount'
 import { i18n } from './i18n'
@@ -49,6 +51,11 @@ export const PHOTON_ID = 'photon'
 // Photon's API binding (photon-startos/startos/utils.ts).
 const photonHostId = 'api'
 const photonPort = 2322
+export const TREK_ID = 'trek'
+export const trekVersionRange = '>=5.2.0:0'
+// TREK's web binding (trek-startos/startos/utils.ts).
+const trekHostId = 'main'
+const trekPort = 3000
 
 export const dbMounts = sdk.Mounts.of().mountVolume({
   volumeId: 'db',
@@ -488,7 +495,7 @@ export async function updateImmichConnection(
 // Resolves Dawarich's connection-test alert, or null when the settings saved cleanly.
 export async function saveConnectionSettings(
   effects: T.Effects,
-  service: 'immich' | 'airtrail',
+  service: 'immich' | 'airtrail' | 'trek',
   userId: number,
   url: string,
   apiKey: string,
@@ -1020,6 +1027,228 @@ export async function checkAirtrailAccess(
           ),
         )
       else connected.push(`${email} → ${account.username}`)
+    }
+  }
+  if (failures.length) return { result: 'failure', message: failures.join(' ') }
+  if (waiting.length) return { result: 'loading', message: waiting.join(' ') }
+  return {
+    result: 'success',
+    message: i18n('Connected: ${accounts}', { accounts: connected.join(', ') }),
+  }
+}
+
+export function trekInstalled(effects: T.Effects) {
+  return sdk.getServiceManifest(effects, TREK_ID, (m) => m !== null)
+}
+
+export function trekBridgeAddress(effects: T.Effects) {
+  return sdk.host.getBridgeAddress(effects, {
+    packageId: TREK_ID,
+    hostId: trekHostId,
+    internalPort: trekPort,
+    ssl: false,
+  })
+}
+
+// TREK's own key format, whose first 13 characters TREK lists as the key's prefix.
+export function newTrekKey(): TrekKey {
+  const secret = `trek_${randomBytes(24).toString('hex')}`
+  return { secret, keyHash: createHash('sha256').update(secret).digest('hex') }
+}
+
+export async function requestTrekAccess(
+  effects: T.Effects,
+  key: TrekKey,
+  label: string,
+) {
+  await sdk.action.run({
+    effects,
+    packageId: TREK_ID,
+    actionId: 'request-access',
+    input: () => ({
+      keyHash: key.keyHash,
+      keyPrefix: key.secret.slice(0, 13),
+      // Every section Dawarich's Trek::Itinerary stores.
+      scopes: [
+        'trips',
+        'days',
+        'places',
+        'notes',
+        'reservations',
+        'accommodations',
+        'travellers',
+      ],
+      label: label.slice(0, 64),
+    }),
+  })
+}
+
+// A null hash revokes every key Dawarich holds in TREK.
+export async function revokeTrekAccess(
+  effects: T.Effects,
+  keyHash: string | null,
+) {
+  await sdk.action.run({
+    effects,
+    packageId: TREK_ID,
+    actionId: 'revoke-access',
+    input: () => ({ keyHash }),
+  })
+}
+
+// TREK answers 401 until the user approves the key.
+async function trekKeyState(url: string, secret: string) {
+  const res = await fetch(`${url}/api/v1/trips`, {
+    headers: { authorization: `Bearer ${secret}` },
+    signal: AbortSignal.timeout(10_000),
+  }).catch(() => null)
+  await res?.body?.cancel().catch(() => undefined)
+  if (res?.status === 401) return 'unapproved'
+  return res?.ok ? 'approved' : 'no-answer'
+}
+
+export async function updateTrekConnection(
+  effects: T.Effects,
+  userId: number,
+  change: (c: TrekConnection | undefined) => TrekConnection | null,
+): Promise<TrekConnection | null> {
+  let next: TrekConnection | null = null
+  await storeJson.update(effects, (s) => {
+    if (!s) return null
+    next = change(s.trekConnections.find((c) => c.userId === userId))
+    return {
+      ...s,
+      trekConnections: [
+        ...s.trekConnections.filter((c) => c.userId !== userId),
+        ...(next ? [next] : []),
+      ],
+    }
+  })
+  return next
+}
+
+// Puts a key TREK approved into use, or withdraws it with the reason it can't be used.
+async function adoptTrekKey(
+  effects: T.Effects,
+  c: TrekConnection,
+  key: TrekKey,
+  url: string,
+): Promise<TrekConnection['problem']> {
+  let problem: TrekConnection['problem'] = null
+  if (!(await listDawarichAccounts(effects)).some((a) => a.id === c.userId)) {
+    problem = { code: 'account-missing', detail: '' }
+  } else {
+    const alert = await saveConnectionSettings(
+      effects,
+      'trek',
+      c.userId,
+      url,
+      key.secret,
+    )
+    if (alert) problem = { code: 'failed', detail: alert }
+  }
+  if (problem) await revokeTrekAccess(effects, key.keyHash)
+
+  const now = await updateTrekConnection(effects, c.userId, (current) =>
+    current?.pendingKey?.keyHash !== key.keyHash
+      ? (current ?? null)
+      : problem
+        ? { ...current, pendingKey: null, problem }
+        : { ...current, key, pendingKey: null, problem: null },
+  )
+  if (problem) return problem
+  // Disconnect TREK ran while the source was being saved.
+  if (!now)
+    await saveConnectionSettings(effects, 'trek', c.userId, '', key.secret)
+  else if (
+    now.key?.keyHash === key.keyHash &&
+    c.key &&
+    c.key.keyHash !== key.keyHash
+  )
+    await revokeTrekAccess(effects, c.key.keyHash).catch((e) =>
+      console.error(`Could not revoke the replaced TREK key: ${e}`),
+    )
+  return null
+}
+
+// Also puts the keys TREK has approved into use.
+export async function checkTrekAccess(
+  effects: T.Effects,
+): Promise<healthFns.HealthCheckResult> {
+  const connections = (
+    (await storeJson.read((s) => s.trekConnections).once()) ?? []
+  ).filter((c) => c.key || c.pendingKey || c.problem)
+  if (!connections.length)
+    return {
+      result: 'disabled',
+      message: i18n('No Dawarich account is connected to TREK'),
+    }
+  if (!(await sdk.getStatus(effects, { packageId: TREK_ID }).once())?.started)
+    return {
+      result: 'loading',
+      message: i18n('Paused while TREK is stopped'),
+    }
+  const address = await trekBridgeAddress(effects).once()
+  if (!address)
+    return {
+      result: 'failure',
+      message: i18n('TREK has no address Dawarich can reach'),
+    }
+  const url = `http://${address}`
+  const noAnswer: healthFns.HealthCheckResult = {
+    result: 'loading',
+    message: i18n('Waiting for TREK to answer'),
+  }
+
+  const failures: string[] = []
+  const waiting: string[] = []
+  const connected: string[] = []
+  for (const c of connections) {
+    const { email } = c
+    let problem = c.problem
+    if (c.pendingKey) {
+      const state = await trekKeyState(url, c.pendingKey.secret)
+      if (state === 'no-answer') return noAnswer
+      if (state === 'unapproved') {
+        waiting.push(
+          i18n(
+            'Approve Dawarich’s request for ${email} in TREK’s tasks. If you denied it, run Disconnect TREK to stop asking, or Connect TREK to ask again.',
+            { email },
+          ),
+        )
+        continue
+      }
+      problem = await adoptTrekKey(effects, c, c.pendingKey, url)
+      if (!problem) {
+        connected.push(email)
+        continue
+      }
+    }
+    if (problem) {
+      failures.push(
+        problem.code === 'account-missing'
+          ? i18n(
+              'The Dawarich account ${email} no longer exists. Run Disconnect TREK for it.',
+              { email },
+            )
+          : i18n(
+              'Dawarich could not use TREK for ${email} (${detail}). Run Connect TREK again.',
+              { email, detail: problem.detail },
+            ),
+      )
+      continue
+    }
+    if (c.key) {
+      const state = await trekKeyState(url, c.key.secret)
+      if (state === 'no-answer') return noAnswer
+      if (state === 'unapproved')
+        failures.push(
+          i18n(
+            'TREK no longer accepts the key for ${email}. Run Connect TREK again.',
+            { email },
+          ),
+        )
+      else connected.push(email)
     }
   }
   if (failures.length) return { result: 'failure', message: failures.join(' ') }

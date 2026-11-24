@@ -12,6 +12,7 @@ import {
   appMounts,
   checkAirtrailAccess,
   checkImmichAccess,
+  checkTrekAccess,
   databaseEnv,
   dbMounts,
   getApplicationHosts,
@@ -25,6 +26,7 @@ import {
   recorderInstalled,
   recorderMounts,
   syncStatusFile,
+  trekInstalled,
   uiPort,
   urlHost,
 } from './utils'
@@ -65,6 +67,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
   const recorderPresent = await recorderInstalled(effects).const()
   const immichPresent = await immichInstalled(effects).const()
   const airtrailPresent = await airtrailInstalled(effects).const()
+  const trekPresent = await trekInstalled(effects).const()
   // Read once: Connect and Disconnect Photon write it while Dawarich runs.
   const photonHost = await storeJson.read((s) => s.photonHost).once()
   const photonAddress = photonHost
@@ -427,6 +430,18 @@ export const main = sdk.setupMain(async ({ effects }) => {
               display: i18n('AirTrail'),
               trigger: sdk.trigger.cooldownTrigger(15_000),
               fn: () => checkAirtrailAccess(effects),
+            },
+            requires: ['web'],
+          }
+        : null,
+    )
+    .addHealthCheck('trek', () =>
+      trekPresent
+        ? {
+            ready: {
+              display: i18n('TREK'),
+              trigger: sdk.trigger.cooldownTrigger(15_000),
+              fn: () => checkTrekAccess(effects),
             },
             requires: ['web'],
           }
